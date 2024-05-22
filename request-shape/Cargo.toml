@@ -1,0 +1,13 @@
+[package]
+name = "request-shape"
+authors = ["Ryan Levick <me@ryanlevick.com>"]
+description = ""
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.25"
+anyhow = "1"

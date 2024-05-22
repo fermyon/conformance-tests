@@ -1,0 +1,35 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/base/path?key=value",
+                "headers": [
+                    {
+                        "name": "User-Agent",
+                        "value": "my-agent"
+                    },
+                    {
+                        "name": "Accept",
+                        "value": "*/*"
+                    },
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    }
+                ]
+            },
+            "response": {
+                "headers": [
+                    {
+                        "name": "Content-Length",
+                        "value": "0"
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "*.md"
+      - "LICENSE"
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - ".plugin-manifests/**"
+      - "*.md"
+      - "LICENSE"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: 1.78
+jobs:
+  lint-rust:
+    name: Lint Rust
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install ${{ env.RUST_VERSION }} --component clippy --component rustfmt
+          rustup default ${{ env.RUST_VERSION }}
+      - name: Install Wasm Rust target
+        run: rustup target add wasm32-wasi && rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "${{ runner.os }}-full-${{ hashFiles('./Cargo.lock') }}"
+      - uses: actions/checkout@v4
+      - name: Cargo Format
+        run:
+          cargo fmt --all -- --check
+      - name: Cargo Clippy
+        run:
+          cargo clippy --workspace --all-targets --all-features -- -D warnings

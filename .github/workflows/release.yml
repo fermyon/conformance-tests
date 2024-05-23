@@ -1,0 +1,45 @@
+name: Create and Upload Release
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+    CARGO_TERM_COLOR: always
+    RUST_VERSION: 1.78
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        rustup toolchain install ${{ env.RUST_VERSION }} --component rustfmt
+        rustup default ${{ env.RUST_VERSION }}
+
+    - name: Create archive
+      run: |
+        ./archive.sh
+
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tests
+        path: tests.tar.gz
+    
+    - name: Recreate canary release
+      uses: ncipollo/release-action@v1.14.0
+      with:
+        tag: canary
+        allowUpdates: true
+        prerelease: true
+        artifacts: "tests.tar.gz"
+        commit: ${{ github.sha }}
+        body: |
+          This is a "canary" release of the most recent commits on our main branch. Canary is **not stable**.

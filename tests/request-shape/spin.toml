@@ -3,8 +3,7 @@ spin_manifest_version = 2
 [application]
 name = "request-shape"
 version = "0.1.0"
-authors = ["Ryan Levick <me@ryanlevick.com>"]
-description = ""
+authors = ["Fermyon Engineering <engineering@fermyon.com>"]
 
 [application.trigger.http]
 base = "/base"
@@ -14,8 +13,4 @@ route = "/..."
 component = "request-shape"
 
 [component.request-shape]
-source = "target/wasm32-unknown-unknown/release/request_shape.wasm"
-allowed_outbound_hosts = []
-[component.request-shape.build]
-command = "cargo build --target wasm32-unknown-unknown --release"
-watch = ["src/**/*.rs", "Cargo.toml"]
+source = "%{source=request-shape}"

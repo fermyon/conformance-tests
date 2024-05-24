@@ -9,5 +9,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.25"
-anyhow = "1"
+wit-bindgen = { workspace = true }
+anyhow = { workspace = true }

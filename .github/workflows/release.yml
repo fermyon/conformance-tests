@@ -24,7 +24,7 @@ jobs:
     - name: Install Wasm Rust target
       run: rustup target add wasm32-wasi && rustup target add wasm32-unknown-unknown
     - name: Create archive
-      run: ./archive.sh
+      run: cargo run -- archive
     - name: Upload release artifact
       uses: actions/upload-artifact@v4
       with:

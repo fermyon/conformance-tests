@@ -1,3 +1,19 @@
+[package]
+name = "conformance-tests-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+flate2 = "1.0"
+regex = "1.10"
+tempfile = "3.3"
+tar = "0.4"
+
 [workspace]
-members = ["tests/*"]
+members = ["components/*", "crates/*"]
 resolver = "2"
+
+[workspace.dependencies]
+anyhow = "1.0"
+wit-bindgen = "0.25"

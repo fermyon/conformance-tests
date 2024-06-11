@@ -1,0 +1,9 @@
+[package]
+name = "test-environment"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+fslock = "0.2"
+temp-dir = "0.1"

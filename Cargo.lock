@@ -1138,7 +1138,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "fslock",
+ "reqwest",
  "temp-dir",
+ "tokio",
 ]
 
 [[package]]

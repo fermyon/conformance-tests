@@ -109,9 +109,9 @@ pub enum Method {
     Delete,
 }
 
-impl Into<reqwest::Method> for Method {
-    fn into(self) -> reqwest::Method {
-        match self {
+impl From<Method> for reqwest::Method {
+    fn from(method: Method) -> Self {
+        match method {
             Method::Get => reqwest::Method::GET,
             Method::Post => reqwest::Method::POST,
             Method::Put => reqwest::Method::PUT,

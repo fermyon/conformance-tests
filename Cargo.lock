@@ -1138,6 +1138,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "fslock",
+ "regex",
  "reqwest",
  "temp-dir",
  "tokio",

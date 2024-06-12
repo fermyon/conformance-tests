@@ -28,6 +28,32 @@ pub struct Request {
     pub body: Option<String>,
 }
 
+impl Request {
+    /// Send the request
+    pub fn send<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
+    where
+        F: for<'a, 'b> FnOnce(
+            test_environment::http::Request<'a, String>,
+        ) -> anyhow::Result<test_environment::http::Response>,
+    {
+        let headers = self
+            .headers
+            .iter()
+            .map(|h| (h.name.as_str(), h.value.as_str()))
+            .collect::<Vec<_>>();
+        let request = test_environment::http::Request::full(
+            match self.method {
+                Method::GET => test_environment::http::Method::Get,
+                Method::POST => test_environment::http::Method::Post,
+            },
+            &self.path,
+            &headers,
+            self.body,
+        );
+        send(request)
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct Response {
     #[serde(default = "default_response_status")]

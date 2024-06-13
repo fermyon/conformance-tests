@@ -43,3 +43,9 @@ For more information on the conformance test manifest, see [the docs here](./doc
 The conformance test suite does not provide a way to run the tests by default. Each Spin compliant runtime is different enough in structure that providing a test suite runner that can handle all of them is likely not possible. At the very least, this is out of scope for the near term. 
 
 This means each runtime will have to provide their own test runner.
+
+## Helper Crates
+
+The crates found in the `crates` directory provide functionality related to conformance testing:
+* `conformance-tests`: helpers for downloading and running the conformance test suite.
+* `test-environment`: a framework for building a conformance test runner using a test environment

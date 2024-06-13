@@ -11,25 +11,18 @@
                 ]
             },
             "response": {
+                "status": 500,
                 "headers": [
                     {
                         "name": "transfer-encoding",
                         "value": "chunked"
                     },
                     {
-                        "name": "server",
-                        "value": "simplehttp/0.6 python/3.12.3",
-                    },
-                    {
-                        "name": "content-type",
-                        "value": "text/plain"
-                    },
-                    {
                         "name": "Date",
                         "optional": true
                     }
                 ],
-                "body": "Hello, world!"
+                "body": "ErrorCode::HttpRequestDenied"
             },
         }
     ],

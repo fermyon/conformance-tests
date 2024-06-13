@@ -62,7 +62,7 @@ impl Request {
                 let port = env.get_port(value.parse().context("port must be a number")?)?;
                 match port {
                     Some(port) => Ok(Some(port.to_string())),
-                    None => Ok(None),
+                    None => anyhow::bail!("no port {value} exposed by any service"),
                 }
             } else {
                 Ok(None)

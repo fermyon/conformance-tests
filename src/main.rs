@@ -163,7 +163,7 @@ fn substitute_source(
     static TEMPLATE_REGEX: OnceLock<regex::Regex> = OnceLock::new();
     let regex = TEMPLATE_REGEX.get_or_init(|| regex::Regex::new(r"%\{(.*?)\}").unwrap());
     'outer: loop {
-        'inner: for captures in regex.captures_iter(&manifest) {
+        for captures in regex.captures_iter(manifest) {
             let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
                 continue;
             };
@@ -172,19 +172,16 @@ fn substitute_source(
                 format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
             })?;
             let (template_key, template_value) = (template_key.trim(), template_value.trim());
-            match template_key {
-                "source" => {
-                    let path = components
-                        .get(template_value)
-                        .with_context(|| format!("'{template_value}' is not a known component"))?;
-                    let component_file = format!("{template_value}.wasm");
-                    std::fs::copy(path, test_archive.join(&component_file))?;
-                    println!("Substituting {template} with {component_file}...");
-                    manifest.replace_range(full.range(), &component_file);
-                    // Restart the search after a substitution
-                    break 'inner;
-                }
-                _ => {}
+            if "source" == template_key {
+                let path = components
+                    .get(template_value)
+                    .with_context(|| format!("'{template_value}' is not a known component"))?;
+                let component_file = "component.wasm";
+                std::fs::copy(path, test_archive.join(component_file))?;
+                println!("Substituting {template} with {component_file}...");
+                manifest.replace_range(full.range(), component_file);
+                // Restart the search after a substitution
+                continue 'outer;
             }
         }
         // Break the outer loop if no substitutions were made

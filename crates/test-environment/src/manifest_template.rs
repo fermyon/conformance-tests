@@ -97,7 +97,7 @@ pub fn replace_template(
     'outer: loop {
         'inner: for captures in regex.captures_iter(content) {
             let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
-                continue;
+                continue 'inner;
             };
             let template = capture.as_str();
             let (template_key, template_value) = template.split_once('=').with_context(|| {
@@ -107,7 +107,7 @@ pub fn replace_template(
             if let Some(replacement) = replacement(template_key, template_value)? {
                 content.replace_range(full.range(), &replacement);
                 // Restart the search after a substitution
-                break 'inner;
+                continue 'outer;
             }
         }
         // Break the outer loop if no substitutions were made

@@ -30,13 +30,7 @@ impl incoming_handler::Guest for Component {
                 .and_then(|v| Url::parse(v).ok())
         }) else {
             // Otherwise, return a 400 Bad Request response.
-            let response = OutgoingResponse::new(Headers::new());
-            response.set_status_code(400).unwrap();
-            let body = response.body().unwrap();
-
-            ResponseOutparam::set(outparam, Ok(response));
-
-            OutgoingBody::finish(body, None).unwrap();
+            return_response(outparam, 400, b"Bad Request");
             return;
         };
 
@@ -61,31 +55,17 @@ impl incoming_handler::Guest for Component {
             .unwrap();
 
         // Write the request body.
-        let outgoing_body = outgoing_request.body().unwrap();
-        {
-            let outgoing_stream = outgoing_body.write().unwrap();
-            let message = b"Hello, world!";
-            let mut offset = 0;
-            loop {
-                let write = outgoing_stream.check_write().unwrap();
-                if write == 0 {
-                    outgoing_stream.subscribe().block();
-                } else {
-                    let count = (write as usize).min(message.len() - offset);
-                    outgoing_stream.write(&message[offset..][..count]).unwrap();
-                    offset += count;
-                    if offset == message.len() {
-                        outgoing_stream.flush().unwrap();
-                        break;
-                    }
-                }
-            }
-            // The outgoing stream must be dropped before the outgoing body is finished.
-        }
-        OutgoingBody::finish(outgoing_body, None).unwrap();
+        write_outgoing_body(outgoing_request.body().unwrap(), b"Hello, world!");
 
         // Get the incoming response.
-        let response = outgoing_handler::handle(outgoing_request, None).unwrap();
+        let response = match outgoing_handler::handle(outgoing_request, None) {
+            Ok(r) => r,
+            Err(e) => {
+                return_response(outparam, 500, e.to_string().as_bytes());
+                return;
+            }
+        };
+
         let response = loop {
             if let Some(response) = response.get() {
                 break response.unwrap().unwrap();
@@ -125,4 +105,35 @@ impl incoming_handler::Guest for Component {
 
         OutgoingBody::finish(outgoing_body, None).unwrap();
     }
+}
+
+fn write_outgoing_body(outgoing_body: OutgoingBody, message: &[u8]) {
+    {
+        let outgoing_stream = outgoing_body.write().unwrap();
+        let mut offset = 0;
+        loop {
+            let write = outgoing_stream.check_write().unwrap();
+            if write == 0 {
+                outgoing_stream.subscribe().block();
+            } else {
+                let count = (write as usize).min(message.len() - offset);
+                outgoing_stream.write(&message[offset..][..count]).unwrap();
+                offset += count;
+                if offset == message.len() {
+                    outgoing_stream.flush().unwrap();
+                    break;
+                }
+            }
+        }
+        // The outgoing stream must be dropped before the outgoing body is finished.
+    }
+    OutgoingBody::finish(outgoing_body, None).unwrap();
+}
+
+fn return_response(outparam: ResponseOutparam, status: u16, body: &[u8]) {
+    let response = OutgoingResponse::new(Headers::new());
+    response.set_status_code(status).unwrap();
+    write_outgoing_body(response.body().unwrap(), body);
+
+    ResponseOutparam::set(outparam, Ok(response));
 }

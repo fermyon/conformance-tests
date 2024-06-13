@@ -5,6 +5,17 @@ fn main() {
     };
     let result = match command.as_str() {
         "archive" => archive(),
+        "package" => {
+            let dir = std::env::args()
+                .nth(2)
+                .unwrap_or_else(|| "conformance-tests".into());
+            std::fs::create_dir(&dir)
+                .context("failed to create dir")
+                .and_then(|_| {
+                    package_into(dir)?;
+                    Ok(())
+                })
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
             std::process::exit(1);
@@ -50,6 +61,20 @@ fn archive() -> anyhow::Result<()> {
     std::fs::File::create(temp_dir_path.join(".gitkeep"))
         .context("failed to create .gitkeep in temp directory")?;
 
+    package_into(temp_dir_path)?;
+
+    // Create the tarball from the temporary directory
+    let tar_gz = File::create(output_tar)?;
+    let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
+    let mut tar = Builder::new(enc);
+    tar.append_dir_all(".", temp_dir_path)?;
+
+    println!("Tarball created: {}", output_tar);
+    Ok(())
+}
+
+/// Packages the components and tests into the provided directory
+fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
     let mut components = HashMap::new();
     for entry in std::fs::read_dir("components").context("failed to read 'components' directory")? {
         let component_dir = entry.context("failed to read a component directory")?;
@@ -82,8 +107,6 @@ fn archive() -> anyhow::Result<()> {
 
         components.insert(component_name.to_owned(), wasm_artifact);
     }
-
-    // Loop over each subdirectory in the base directory
     for entry in std::fs::read_dir("tests").unwrap() {
         let test = entry.unwrap();
         if !test.path().is_dir() {
@@ -96,7 +119,7 @@ fn archive() -> anyhow::Result<()> {
             .file_name()
             .context("could not determine test name")?;
 
-        let test_archive = temp_dir_path.join(test_name);
+        let test_archive = dir_path.as_ref().join(test_name);
         std::fs::create_dir_all(&test_archive).context("failed to create component directory")?;
 
         // Copy the configuration and manifest files to the temporary directory
@@ -113,13 +136,6 @@ fn archive() -> anyhow::Result<()> {
             .context("failed to copy spin manifest to temp directory")?;
     }
 
-    // Create the tarball from the temporary directory
-    let tar_gz = File::create(output_tar)?;
-    let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
-    let mut tar = Builder::new(enc);
-    tar.append_dir_all(".", temp_dir_path)?;
-
-    println!("Tarball created: {}", output_tar);
     Ok(())
 }
 

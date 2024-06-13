@@ -75,6 +75,7 @@ pub fn tests(tests_dir: &Path) -> anyhow::Result<impl Iterator<Item = Test>> {
     Ok(items.into_iter())
 }
 
+#[derive(Debug, Clone)]
 pub struct Test {
     pub name: String,
     pub config: config::TestConfig,

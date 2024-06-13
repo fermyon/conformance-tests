@@ -87,8 +87,8 @@ pub mod assertions {
     use test_environment::http::Response as ActualResponse;
 
     pub fn assert_response(
-        expected: ExpectedResponse,
-        actual: ActualResponse,
+        expected: &ExpectedResponse,
+        actual: &ActualResponse,
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             actual.status() == expected.status,
@@ -102,9 +102,9 @@ pub mod assertions {
             .iter()
             .map(|(k, v)| (k.to_lowercase(), v.to_lowercase()))
             .collect::<std::collections::HashMap<_, _>>();
-        for expected_header in expected.headers {
+        for expected_header in &expected.headers {
             let expected_name = expected_header.name.to_lowercase();
-            let expected_value = expected_header.value.map(|v| v.to_lowercase());
+            let expected_value = expected_header.value.as_ref().map(|v| v.to_lowercase());
             let actual_value = actual_headers.remove(&expected_name);
             let Some(actual_value) = actual_value.as_deref() else {
                 if expected_header.optional {
@@ -128,7 +128,7 @@ pub mod assertions {
             anyhow::bail!("unexpected headers: {actual_headers:?}");
         }
 
-        let expected_body = expected.body.unwrap_or_default();
+        let expected_body = expected.body.as_deref().unwrap_or_default();
         let actual_body = actual
             .text()
             .unwrap_or_else(|_| String::from("<invalid utf-8>"));

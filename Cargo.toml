@@ -16,4 +16,4 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-wit-bindgen = "0.25"
+wit-bindgen = "0.26"

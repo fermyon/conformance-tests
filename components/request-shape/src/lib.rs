@@ -27,7 +27,7 @@ impl Guest for Component {
             .map(|_| OutgoingResponse::new(Headers::new()))
             .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
         get_stdout()
-            .blocking_write_and_flush(format!("Test Result: {result:?}").as_bytes())
+            .blocking_write_and_flush(format!("Test Result: {result:?}\n").as_bytes())
             .unwrap();
         ResponseOutparam::set(response_out, result)
     }
@@ -105,6 +105,7 @@ fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
 
 /// Fails unless there is exactly one header with the given name, and it is valid UTF-8
 fn header_as_string(req: &IncomingRequest, name: &str) -> anyhow::Result<String> {
+    //TODO: handle the fact that headers are case sensitive
     let mut headers = req.headers().get(&name.to_owned());
 
     if headers.len() != 1 {

@@ -81,3 +81,63 @@ pub struct Test {
     pub manifest: PathBuf,
     pub component: PathBuf,
 }
+
+pub mod assertions {
+    use super::config::Response as ExpectedResponse;
+    use test_environment::http::Response as ActualResponse;
+
+    pub fn assert_response(
+        expected: &ExpectedResponse,
+        actual: &ActualResponse,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            actual.status() == expected.status,
+            "actual status {} != expected status {}",
+            actual.status(),
+            expected.status
+        );
+
+        let mut actual_headers = actual
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.to_lowercase(), v.to_lowercase()))
+            .collect::<std::collections::HashMap<_, _>>();
+        for expected_header in &expected.headers {
+            let expected_name = expected_header.name.to_lowercase();
+            let expected_value = expected_header.value.as_ref().map(|v| v.to_lowercase());
+            let actual_value = actual_headers.remove(&expected_name);
+            let Some(actual_value) = actual_value.as_deref() else {
+                if expected_header.optional {
+                    continue;
+                } else {
+                    anyhow::bail!(
+                        "expected header '{name}' not found in response",
+                        name = expected_header.name
+                    )
+                }
+            };
+            if let Some(expected_value) = expected_value {
+                anyhow::ensure!(
+                    actual_value == expected_value,
+                    "header '{name}' has unexpected value '{actual_value}' != '{expected_value}'",
+                    name = expected_header.name
+                );
+            }
+        }
+        if !actual_headers.is_empty() {
+            anyhow::bail!("unexpected headers: {actual_headers:?}");
+        }
+
+        let expected_body = expected.body.as_deref().unwrap_or_default();
+        let actual_body = actual
+            .text()
+            .unwrap_or_else(|_| String::from("<invalid utf-8>"));
+
+        anyhow::ensure!(
+            actual_body == expected_body,
+            "actual body != expected body\nactual:\n{actual_body}\nexpected:\n{expected_body}"
+        );
+
+        Ok(())
+    }
+}

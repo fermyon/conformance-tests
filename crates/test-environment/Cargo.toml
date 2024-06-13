@@ -1,0 +1,12 @@
+[package]
+name = "test-environment"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+fslock = "0.2"
+temp-dir = "0.1"
+regex = "1.10"
+reqwest = "0.12"
+tokio = { version = "1", features = ["rt"] }

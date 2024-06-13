@@ -58,15 +58,13 @@ impl Request {
         env: &mut test_environment::TestEnvironment<R>,
     ) -> anyhow::Result<()> {
         self.substitute(move |key, value| {
-            if key == "port" {
-                let port = env.get_port(value.parse().context("port must be a number")?)?;
-                match port {
-                    Some(port) => Ok(Some(port.to_string())),
-                    None => anyhow::bail!("no port {value} exposed by any service"),
-                }
-            } else {
-                Ok(None)
+            if key != "port" {
+                anyhow::bail!("unknown template key: {key}")
             }
+            let port = env
+                .get_port(value.parse().context("port must be a number")?)?
+                .with_context(|| format!("no port {value} exposed by any service"))?;
+            Ok(Some(port.to_string()))
         })
     }
 

@@ -162,22 +162,33 @@ fn substitute_source(
 ) -> anyhow::Result<()> {
     static TEMPLATE_REGEX: OnceLock<regex::Regex> = OnceLock::new();
     let regex = TEMPLATE_REGEX.get_or_init(|| regex::Regex::new(r"%\{(.*?)\}").unwrap());
-    while let Some(captures) = regex.captures(manifest) {
-        let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
-            continue;
-        };
-        let template = capture.as_str();
-        let (template_key, template_value) = template.split_once('=').with_context(|| {
-            format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
-        })?;
-        let path = components
-            .get(template_value)
-            .with_context(|| format!("'{template_value}' is not a known component"))?;
-        let component_file = format!("{template_value}.wasm");
-        std::fs::copy(path, test_archive.join(&component_file))?;
-        if template_key.trim() == "source" {
-            manifest.replace_range(full.range(), &component_file);
+    'outer: loop {
+        'inner: for captures in regex.captures_iter(&manifest) {
+            let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
+                continue;
+            };
+            let template = capture.as_str();
+            let (template_key, template_value) = template.split_once('=').with_context(|| {
+                format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
+            })?;
+            let (template_key, template_value) = (template_key.trim(), template_value.trim());
+            match template_key {
+                "source" => {
+                    let path = components
+                        .get(template_value)
+                        .with_context(|| format!("'{template_value}' is not a known component"))?;
+                    let component_file = format!("{template_value}.wasm");
+                    std::fs::copy(path, test_archive.join(&component_file))?;
+                    println!("Substituting {template} with {component_file}...");
+                    manifest.replace_range(full.range(), &component_file);
+                    // Restart the search after a substitution
+                    break 'inner;
+                }
+                _ => {}
+            }
         }
+        // Break the outer loop if no substitutions were made
+        break 'outer;
     }
     Ok(())
 }

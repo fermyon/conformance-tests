@@ -67,7 +67,51 @@ impl EnvTemplate {
         Ok(())
     }
 
+    pub fn substitute_value(
+        &mut self,
+        key: &str,
+        replacement: impl Fn(&str) -> String,
+    ) -> anyhow::Result<()> {
+        replace_template(&mut self.content, |k, v| {
+            if k == key {
+                Ok(Some(replacement(v)))
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
     pub fn contents(&self) -> &str {
         &self.content
     }
+}
+
+/// Replace template variables in a string.
+///
+/// Every time a template is found, the `replacement` function is called with the template key and value.
+pub fn replace_template(
+    content: &mut String,
+    mut replacement: impl FnMut(&str, &str) -> anyhow::Result<Option<String>>,
+) -> Result<(), anyhow::Error> {
+    let regex = TEMPLATE_REGEX.get_or_init(|| regex::Regex::new(r"%\{(.*?)\}").unwrap());
+    'outer: loop {
+        'inner: for captures in regex.captures_iter(content) {
+            let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
+                continue;
+            };
+            let template = capture.as_str();
+            let (template_key, template_value) = template.split_once('=').with_context(|| {
+                format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
+            })?;
+            let (template_key, template_value) = (template_key.trim(), template_value.trim());
+            if let Some(replacement) = replacement(template_key, template_value)? {
+                content.replace_range(full.range(), &replacement);
+                // Restart the search after a substitution
+                break 'inner;
+            }
+        }
+        // Break the outer loop if no substitutions were made
+        break 'outer;
+    }
+    Ok(())
 }

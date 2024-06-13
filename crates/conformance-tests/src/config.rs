@@ -1,7 +1,11 @@
+use anyhow::Context;
+
 /// The configuration of a conformance test
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct TestConfig {
     pub invocations: Vec<Invocation>,
+    #[serde(default)]
+    pub services: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -45,6 +49,41 @@ pub struct Request {
 }
 
 impl Request {
+    /// Substitute template variables in the request with well known env variables
+    ///
+    /// Supported variables:
+    /// - port: map a well known guest port to the port exposed by the service on the host
+    pub fn substitute_from_env<R>(
+        &mut self,
+        env: &mut test_environment::TestEnvironment<R>,
+    ) -> anyhow::Result<()> {
+        self.substitute(move |key, value| {
+            if key == "port" {
+                let port = env.get_port(value.parse().context("port must be a number")?)?;
+                match port {
+                    Some(port) => Ok(Some(port.to_string())),
+                    None => Ok(None),
+                }
+            } else {
+                Ok(None)
+            }
+        })
+    }
+
+    /// Substitute template variables in the request
+    pub fn substitute(
+        &mut self,
+        mut replacement: impl FnMut(&str, &str) -> anyhow::Result<Option<String>>,
+    ) -> anyhow::Result<()> {
+        for header in &mut self.headers {
+            test_environment::manifest_template::replace_template(
+                &mut header.value,
+                &mut replacement,
+            )?;
+        }
+        Ok(())
+    }
+
     /// Send the request
     pub fn send<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where

@@ -1,0 +1,30 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "url",
+                        "value": "http://localhost:%{port=80}"
+                    }
+                ]
+            },
+            "response": {
+                "status": 500,
+                "headers": [
+                    {
+                        "name": "transfer-encoding",
+                        "value": "chunked"
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ],
+                "body": "ErrorCode::HttpRequestDenied"
+            },
+        }
+    ],
+    "services": ["http-echo"]
+}

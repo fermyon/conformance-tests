@@ -62,7 +62,7 @@ pub fn tests(tests_dir: &Path) -> anyhow::Result<impl Iterator<Item = Test>> {
             let config = r#try!(json5::from_str::<config::TestConfig>(&config)
                 .context("test config could not be parsed"));
 
-            let component_name = format!("{name}.wasm");
+            let component_name = "component.wasm";
             Some(Ok(Test {
                 name,
                 config,
@@ -75,6 +75,7 @@ pub fn tests(tests_dir: &Path) -> anyhow::Result<impl Iterator<Item = Test>> {
     Ok(items.into_iter())
 }
 
+#[derive(Debug, Clone)]
 pub struct Test {
     pub name: String,
     pub config: config::TestConfig,
@@ -92,9 +93,12 @@ pub mod assertions {
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             actual.status() == expected.status,
-            "actual status {} != expected status {}",
+            "actual status {} != expected status {}\nbody:\n{}",
             actual.status(),
-            expected.status
+            expected.status,
+            actual
+                .text()
+                .unwrap_or_else(|_| String::from("<invalid utf-8>"))
         );
 
         let mut actual_headers = actual

@@ -5,6 +5,17 @@ fn main() {
     };
     let result = match command.as_str() {
         "archive" => archive(),
+        "package" => {
+            let dir = std::env::args()
+                .nth(2)
+                .unwrap_or_else(|| "conformance-tests".into());
+            std::fs::create_dir(&dir)
+                .context("failed to create dir")
+                .and_then(|_| {
+                    package_into(dir)?;
+                    Ok(())
+                })
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
             std::process::exit(1);
@@ -50,6 +61,20 @@ fn archive() -> anyhow::Result<()> {
     std::fs::File::create(temp_dir_path.join(".gitkeep"))
         .context("failed to create .gitkeep in temp directory")?;
 
+    package_into(temp_dir_path)?;
+
+    // Create the tarball from the temporary directory
+    let tar_gz = File::create(output_tar)?;
+    let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
+    let mut tar = Builder::new(enc);
+    tar.append_dir_all(".", temp_dir_path)?;
+
+    println!("Tarball created: {}", output_tar);
+    Ok(())
+}
+
+/// Packages the components and tests into the provided directory
+fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
     let mut components = HashMap::new();
     for entry in std::fs::read_dir("components").context("failed to read 'components' directory")? {
         let component_dir = entry.context("failed to read a component directory")?;
@@ -82,8 +107,6 @@ fn archive() -> anyhow::Result<()> {
 
         components.insert(component_name.to_owned(), wasm_artifact);
     }
-
-    // Loop over each subdirectory in the base directory
     for entry in std::fs::read_dir("tests").unwrap() {
         let test = entry.unwrap();
         if !test.path().is_dir() {
@@ -96,7 +119,7 @@ fn archive() -> anyhow::Result<()> {
             .file_name()
             .context("could not determine test name")?;
 
-        let test_archive = temp_dir_path.join(test_name);
+        let test_archive = dir_path.as_ref().join(test_name);
         std::fs::create_dir_all(&test_archive).context("failed to create component directory")?;
 
         // Copy the configuration and manifest files to the temporary directory
@@ -113,13 +136,6 @@ fn archive() -> anyhow::Result<()> {
             .context("failed to copy spin manifest to temp directory")?;
     }
 
-    // Create the tarball from the temporary directory
-    let tar_gz = File::create(output_tar)?;
-    let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
-    let mut tar = Builder::new(enc);
-    tar.append_dir_all(".", temp_dir_path)?;
-
-    println!("Tarball created: {}", output_tar);
     Ok(())
 }
 
@@ -146,22 +162,30 @@ fn substitute_source(
 ) -> anyhow::Result<()> {
     static TEMPLATE_REGEX: OnceLock<regex::Regex> = OnceLock::new();
     let regex = TEMPLATE_REGEX.get_or_init(|| regex::Regex::new(r"%\{(.*?)\}").unwrap());
-    while let Some(captures) = regex.captures(manifest) {
-        let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
-            continue;
-        };
-        let template = capture.as_str();
-        let (template_key, template_value) = template.split_once('=').with_context(|| {
-            format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
-        })?;
-        let path = components
-            .get(template_value)
-            .with_context(|| format!("'{template_value}' is not a known component"))?;
-        let component_file = format!("{template_value}.wasm");
-        std::fs::copy(path, test_archive.join(&component_file))?;
-        if template_key.trim() == "source" {
-            manifest.replace_range(full.range(), &component_file);
+    'outer: loop {
+        for captures in regex.captures_iter(manifest) {
+            let (Some(full), Some(capture)) = (captures.get(0), captures.get(1)) else {
+                continue;
+            };
+            let template = capture.as_str();
+            let (template_key, template_value) = template.split_once('=').with_context(|| {
+                format!("invalid template '{template}'(template should be in the form $KEY=$VALUE)")
+            })?;
+            let (template_key, template_value) = (template_key.trim(), template_value.trim());
+            if "source" == template_key {
+                let path = components
+                    .get(template_value)
+                    .with_context(|| format!("'{template_value}' is not a known component"))?;
+                let component_file = "component.wasm";
+                std::fs::copy(path, test_archive.join(component_file))?;
+                println!("Substituting {template} with {component_file}...");
+                manifest.replace_range(full.range(), component_file);
+                // Restart the search after a substitution
+                continue 'outer;
+            }
         }
+        // Break the outer loop if no substitutions were made
+        break 'outer;
     }
     Ok(())
 }

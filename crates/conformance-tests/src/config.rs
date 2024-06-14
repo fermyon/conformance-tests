@@ -1,17 +1,21 @@
+use anyhow::Context;
+
 /// The configuration of a conformance test
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct TestConfig {
     pub invocations: Vec<Invocation>,
+    #[serde(default)]
+    pub services: Vec<String>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 #[serde(untagged)]
 pub enum Invocation {
     Http(HttpInvocation),
 }
 
 /// An invocation of the runtime
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct HttpInvocation {
     pub request: Request,
     pub response: Response,
@@ -33,7 +37,7 @@ impl HttpInvocation {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Request {
     #[serde(default)]
     pub method: Method,
@@ -45,6 +49,39 @@ pub struct Request {
 }
 
 impl Request {
+    /// Substitute template variables in the request with well known env variables
+    ///
+    /// Supported variables:
+    /// - port: map a well known guest port to the port exposed by the service on the host
+    pub fn substitute_from_env<R>(
+        &mut self,
+        env: &mut test_environment::TestEnvironment<R>,
+    ) -> anyhow::Result<()> {
+        self.substitute(move |key, value| {
+            if key != "port" {
+                anyhow::bail!("unknown template key: {key}")
+            }
+            let port = env
+                .get_port(value.parse().context("port must be a number")?)?
+                .with_context(|| format!("no port {value} exposed by any service"))?;
+            Ok(Some(port.to_string()))
+        })
+    }
+
+    /// Substitute template variables in the request
+    pub fn substitute(
+        &mut self,
+        mut replacement: impl FnMut(&str, &str) -> anyhow::Result<Option<String>>,
+    ) -> anyhow::Result<()> {
+        for header in &mut self.headers {
+            test_environment::manifest_template::replace_template(
+                &mut header.value,
+                &mut replacement,
+            )?;
+        }
+        Ok(())
+    }
+
     /// Send the request
     pub fn send<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where
@@ -70,7 +107,7 @@ impl Request {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Response {
     #[serde(default = "default_response_status")]
     pub status: u16,
@@ -82,13 +119,13 @@ fn default_response_status() -> u16 {
     200
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct RequestHeader {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct ResponseHeader {
     pub name: String,
     pub value: Option<String>,
@@ -96,7 +133,7 @@ pub struct ResponseHeader {
     pub optional: bool,
 }
 
-#[derive(Debug, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, Default)]
 pub enum Method {
     #[default]
     GET,

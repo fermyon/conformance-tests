@@ -30,8 +30,9 @@ impl HttpInvocation {
         ) -> anyhow::Result<test_environment::http::Response>,
     {
         self.request.send(|request| {
-            let response = send(request)?;
-            crate::assertions::assert_response(&self.response, &response)?;
+            let response = send(request).context("failed to send the request to the runtime")?;
+            crate::assertions::assert_response(&self.response, &response)
+                .context("assertion failed")?;
             Ok(response)
         })
     }

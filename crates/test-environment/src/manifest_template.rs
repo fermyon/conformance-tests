@@ -70,19 +70,25 @@ impl EnvTemplate {
     pub fn substitute_value(
         &mut self,
         key: &str,
-        replacement: impl Fn(&str) -> String,
+        replacement: impl Fn(&str) -> Option<String>,
     ) -> anyhow::Result<()> {
         replace_template(&mut self.content, |k, v| {
             if k == key {
-                Ok(Some(replacement(v)))
+                Ok(replacement(v))
             } else {
                 Ok(None)
             }
         })
     }
 
+    /// Get the contents of the template.
     pub fn contents(&self) -> &str {
         &self.content
+    }
+
+    /// Consume the template and return its contents.
+    pub fn into_contents(self) -> String {
+        self.content
     }
 }
 

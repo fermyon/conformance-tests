@@ -14,15 +14,21 @@
                 "headers": [
                     {
                         "name": "transfer-encoding",
-                        "value": "chunked"
+                        "value": "chunked",
+                        optional: true
                     },
                     {
                         "name": "server",
-                        "value": "simplehttp/0.6 python/3.12.3",
+                        "optional": true
                     },
                     {
                         "name": "content-type",
-                        "value": "text/plain"
+                        "value": "text/plain",
+                        "optional": true
+                    },
+                    {
+                        "name": "content-length",
+                        "optional": true
                     },
                     {
                         "name": "Date",

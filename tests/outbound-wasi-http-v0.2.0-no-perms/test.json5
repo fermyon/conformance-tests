@@ -15,7 +15,13 @@
                 "headers": [
                     {
                         "name": "transfer-encoding",
-                        "value": "chunked"
+                        "value": "chunked",
+                        optional: true
+                    },
+                    {
+                        "name": "content-length",
+                        "value": "28",
+                        optional: true
                     },
                     {
                         "name": "Date",

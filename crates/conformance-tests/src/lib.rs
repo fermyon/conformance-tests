@@ -87,10 +87,12 @@ pub mod assertions {
     use super::config::Response as ExpectedResponse;
     use test_environment::http::Response as ActualResponse;
 
+    /// Assert that the actual response matches the expected response
     pub fn assert_response(
         expected: &ExpectedResponse,
         actual: &ActualResponse,
     ) -> anyhow::Result<()> {
+        // We assert the status code first, because if it's wrong, the body and headers are likely wrong
         anyhow::ensure!(
             actual.status() == expected.status,
             "actual status {} != expected status {}\nbody:\n{}",
@@ -99,6 +101,17 @@ pub mod assertions {
             actual
                 .text()
                 .unwrap_or_else(|_| String::from("<invalid utf-8>"))
+        );
+
+        // We assert the body next, because if it's wrong, it usually has more information as to why
+        let expected_body = expected.body.as_deref().unwrap_or_default();
+        let actual_body = actual
+            .text()
+            .unwrap_or_else(|_| String::from("<invalid utf-8>"));
+
+        anyhow::ensure!(
+            actual_body == expected_body,
+            "actual body != expected body\nactual:\n{actual_body}\nexpected:\n{expected_body}"
         );
 
         let mut actual_headers = actual
@@ -131,16 +144,6 @@ pub mod assertions {
         if !actual_headers.is_empty() {
             anyhow::bail!("unexpected headers: {actual_headers:?}");
         }
-
-        let expected_body = expected.body.as_deref().unwrap_or_default();
-        let actual_body = actual
-            .text()
-            .unwrap_or_else(|_| String::from("<invalid utf-8>"));
-
-        anyhow::ensure!(
-            actual_body == expected_body,
-            "actual body != expected body\nactual:\n{actual_body}\nexpected:\n{expected_body}"
-        );
 
         Ok(())
     }

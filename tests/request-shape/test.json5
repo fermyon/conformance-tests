@@ -2,7 +2,7 @@
     "invocations": [
         {
             "request": {
-                "path": "/base/path/end?key=value",
+                "path": "/base/path/end/rest?key=value",
                 "headers": [
                     {
                         "name": "User-Agent",

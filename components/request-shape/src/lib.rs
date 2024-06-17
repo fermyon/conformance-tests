@@ -61,7 +61,7 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
         .context("authority is not a valid SocketAddr")?;
 
     let path_with_query = req.path_with_query();
-    let expected = "/base/path/end?key=value";
+    let expected = "/base/path/end/rest?key=value";
     anyhow::ensure!(
         path_with_query.as_deref() == Some(expected),
         "URL was expected to be '{expected}' but was '{path_with_query:?}'"
@@ -80,17 +80,17 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
 /// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     let expected_headers = [
-        ("spin-raw-component-route", "/:path_segment/:path_end"),
+        ("spin-raw-component-route", "/:path_segment/:path_end/..."),
         (
             "spin-full-url",
-            "http://example.com/base/path/end?key=value",
+            "http://example.com/base/path/end/rest?key=value",
         ),
-        ("spin-path-info", ""),
+        ("spin-path-info", "/rest"),
         ("spin-base-path", "/base"),
         ("spin-component-route", "/:path_segment/:path_end"),
         ("spin-path-match-path-segment", "path"),
         ("spin-path-match-path-end", "end"),
-        ("spin-matched-route", "/base/:path_segment/:path_end"),
+        ("spin-matched-route", "/base/:path_segment/:path_end/..."),
     ];
 
     let mut actual_headers: HashMap<String, Vec<Vec<u8>>> = HashMap::new();

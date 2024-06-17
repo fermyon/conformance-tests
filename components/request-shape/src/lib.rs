@@ -61,7 +61,7 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
         .context("authority is not a valid SocketAddr")?;
 
     let path_with_query = req.path_with_query();
-    let expected = "/base/path?key=value";
+    let expected = "/base/path/end?key=value";
     anyhow::ensure!(
         path_with_query.as_deref() == Some(expected),
         "URL was expected to be '{expected}' but was '{path_with_query:?}'"
@@ -80,13 +80,17 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
 /// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     let expected_headers = [
-        ("spin-raw-component-route", "/:path_segment"),
-        ("spin-full-url", "http://example.com/base/path?key=value"),
+        ("spin-raw-component-route", "/:path_segment/:path_end"),
+        (
+            "spin-full-url",
+            "http://example.com/base/path/end?key=value",
+        ),
         ("spin-path-info", ""),
         ("spin-base-path", "/base"),
-        ("spin-component-route", "/:path_segment"),
+        ("spin-component-route", "/:path_segment/:path_end"),
         ("spin-path-match-path-segment", "path"),
-        ("spin-matched-route", "/base/:path_segment"),
+        ("spin-path-match-path-end", "end"),
+        ("spin-matched-route", "/base/:path_segment/:path_end"),
     ];
 
     let mut actual_headers: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
@@ -110,7 +114,8 @@ fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
 
     // Check that there are no unexpected `spin-*` headers
     for (name, _) in actual_headers {
-        if name.starts_with("spin-") {
+        let lowercase = &name.to_lowercase();
+        if lowercase.starts_with("spin-") || lowercase.starts_with("spin_") {
             anyhow::bail!("unexpected special `spin-*` header '{name}' found in request");
         }
     }

@@ -80,13 +80,13 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
 /// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     let expected_headers = [
-        ("spin-raw-component-route", "/:path"),
+        ("spin-raw-component-route", "/:path_segment"),
         ("spin-full-url", "http://example.com/base/path?key=value"),
         ("spin-path-info", ""),
         ("spin-base-path", "/base"),
-        ("spin-component-route", "/:path"),
-        ("spin-path-match-path", "path"),
-        ("spin-matched-route", "/base/:path"),
+        ("spin-component-route", "/:path_segment"),
+        ("spin-path-match-path-segment", "path"),
+        ("spin-matched-route", "/base/:path_segment"),
     ];
 
     let mut actual_headers: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
@@ -129,7 +129,7 @@ fn header_as_string(
     if value.len() != 1 {
         anyhow::bail!(
             "expected exactly one header '{name}' but found {}",
-            headers.len()
+            value.len()
         )
     }
     String::from_utf8(value.remove(0))

@@ -1,4 +1,5 @@
 use anyhow::Context;
+use std::collections::HashMap;
 
 mod bindings {
     wit_bindgen::generate!({
@@ -76,18 +77,25 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
-    // Check that the headers are as expected
-    let headers = [
-        ("spin-raw-component-route", "/..."),
+    let expected_headers = [
+        ("spin-raw-component-route", "/:path"),
         ("spin-full-url", "http://example.com/base/path?key=value"),
-        ("spin-path-info", "/path"),
+        ("spin-path-info", ""),
         ("spin-base-path", "/base"),
-        ("spin-component-route", ""),
+        ("spin-component-route", "/:path"),
+        ("spin-path-match-path", "path"),
+        ("spin-matched-route", "/base/:path"),
     ];
 
-    for (name, value) in headers.into_iter() {
-        let header = header_as_string(req, name)?;
+    let mut actual_headers: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
+    for (k, v) in req.headers().entries() {
+        actual_headers.entry(k).or_default().push(v);
+    }
+
+    for (name, value) in expected_headers.into_iter() {
+        let header = header_as_string(&mut actual_headers, name)?;
 
         anyhow::ensure!(
             header == value,
@@ -96,24 +104,34 @@ fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     }
 
     // Check that the spin-client-addr header is a valid SocketAddr
-    let _: std::net::SocketAddr = header_as_string(req, "spin-client-addr")?
+    let _: std::net::SocketAddr = header_as_string(&mut actual_headers, "spin-client-addr")?
         .parse()
         .context("spin-client-addr header is not a valid SocketAddr")?;
+
+    // Check that there are no unexpected `spin-*` headers
+    for (name, _) in actual_headers {
+        if name.starts_with("spin-") {
+            anyhow::bail!("unexpected special `spin-*` header '{name}' found in request");
+        }
+    }
 
     Ok(())
 }
 
 /// Fails unless there is exactly one header with the given name, and it is valid UTF-8
-fn header_as_string(req: &IncomingRequest, name: &str) -> anyhow::Result<String> {
+fn header_as_string(
+    headers: &mut HashMap<String, Vec<Vec<u8>>>,
+    name: &str,
+) -> anyhow::Result<String> {
     //TODO: handle the fact that headers are case sensitive
-    let mut headers = req.headers().get(&name.to_owned());
+    let mut value = headers.remove(name).unwrap_or_default();
 
-    if headers.len() != 1 {
+    if value.len() != 1 {
         anyhow::bail!(
             "expected exactly one header '{name}' but found {}",
             headers.len()
         )
     }
-    String::from_utf8(headers.remove(0))
+    String::from_utf8(value.remove(0))
         .with_context(|| format!("header '{name}' is not valid UTF-8"))
 }

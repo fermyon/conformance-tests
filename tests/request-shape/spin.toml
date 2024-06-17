@@ -9,7 +9,7 @@ authors = ["Fermyon Engineering <engineering@fermyon.com>"]
 base = "/base"
 
 [[trigger.http]]
-route = "/..."
+route = "/:path_segment/:path_end/..."
 component = "request-shape"
 
 [component.request-shape]

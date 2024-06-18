@@ -12,10 +12,7 @@ mod bindings {
 
 use bindings::{
     exports::wasi::http0_2_0::incoming_handler::{Guest, IncomingRequest, ResponseOutparam},
-    wasi::{
-        cli0_2_0::stdout::get_stdout,
-        http0_2_0::types::{ErrorCode, Headers, OutgoingResponse},
-    },
+    wasi::http0_2_0::types::{ErrorCode, Headers, OutgoingResponse},
 };
 
 use crate::bindings::wasi::http0_2_0::types::{Method, Scheme};
@@ -27,9 +24,6 @@ impl Guest for Component {
         let result = handle(request)
             .map(|_| OutgoingResponse::new(Headers::new()))
             .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
-        get_stdout()
-            .blocking_write_and_flush(format!("Test Result: {result:?}\n").as_bytes())
-            .unwrap();
         ResponseOutparam::set(response_out, result)
     }
 }

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+conformance-tests = { path = "crates/conformance-tests" }
 flate2 = "1.0"
 regex = "1.10"
 tempfile = "3.3"

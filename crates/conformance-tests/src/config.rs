@@ -1,11 +1,24 @@
-use anyhow::Context;
+use anyhow::Context as _;
+use std::path::Path;
+
+/// Parse the test configuration from a file
+pub fn parse_from_file(path: impl AsRef<Path>) -> anyhow::Result<TestConfig> {
+    let config = std::fs::read_to_string(path).context("failed to read test manifest")?;
+    parse(&config)
+}
+
+/// Parse the test configuration
+pub fn parse(config: &str) -> anyhow::Result<TestConfig> {
+    json5::from_str::<TestConfig>(config).context("test config could not be parsed")
+}
 
 /// The configuration of a conformance test
 #[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TestConfig {
     pub invocations: Vec<Invocation>,
     #[serde(default)]
-    pub services: Vec<String>,
+    pub preconditions: Vec<Precondition>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -139,4 +152,24 @@ pub enum Method {
     #[default]
     GET,
     POST,
+}
+
+/// A precondition that must be met before the test can be run
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum Precondition {
+    /// A precondition that the key-value store must exist
+    KeyValueStore(KeyValueStorePrecondition),
+    /// The test expects outgoing HTTP requests to be echoed back
+    ///
+    /// The test runner should start an HTTP server that echoes back the request
+    /// and it should update any references that test assets make to port 80 to
+    /// the port of the echo server.
+    HttpEcho,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeyValueStorePrecondition {
+    pub label: String,
 }

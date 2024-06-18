@@ -140,6 +140,7 @@ name = "conformance-tests-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "conformance-tests",
  "flate2",
  "regex",
  "tar",
@@ -552,6 +553,14 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "key-value"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "wit-bindgen",
 ]
 
 [[package]]

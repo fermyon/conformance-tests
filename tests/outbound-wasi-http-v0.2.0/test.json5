@@ -39,5 +39,5 @@
             },
         }
     ],
-    "services": ["http-echo"]
+    "preconditions": [{"kind": "http-echo"}]
 }

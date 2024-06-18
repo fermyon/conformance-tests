@@ -122,12 +122,14 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
         let test_archive = dir_path.as_ref().join(test_name);
         std::fs::create_dir_all(&test_archive).context("failed to create component directory")?;
 
+        // Check that the configuration file can be parsed:
+        let config_file_path = test_path.join("test.json5");
+        let _ = conformance_tests::config::parse_from_file(&config_file_path)
+            .context("failed to parse test manifest")?;
+
         // Copy the configuration and manifest files to the temporary directory
-        std::fs::copy(
-            test_path.join("test.json5"),
-            test_archive.join("test.json5"),
-        )
-        .context("failed to copy test manifest to temp directory")?;
+        std::fs::copy(config_file_path, test_archive.join("test.json5"))
+            .context("failed to copy test manifest to temp directory")?;
         let mut manifest = std::fs::read_to_string(test_path.join("spin.toml"))
             .context("failed to read spin manifest")?;
         substitute_source(&mut manifest, &components, &test_archive)

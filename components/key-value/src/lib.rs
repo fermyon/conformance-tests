@@ -29,7 +29,6 @@ impl Guest for Component {
 
 fn handle(_req: IncomingRequest) -> anyhow::Result<()> {
     anyhow::ensure!(matches!(Store::open("forbidden"), Err(Error::AccessDenied)));
-
     let store = Store::open("default").context("could not open 'default' store")?;
 
     // Ensure nothing set in `bar` key

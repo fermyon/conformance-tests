@@ -23,5 +23,11 @@
                 ]
             }
         }
+    ],
+    "preconditions": [
+        {
+            "kind": "key-value-store",
+            "label": "default",
+        }
     ]
 }

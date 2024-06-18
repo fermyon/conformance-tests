@@ -140,6 +140,7 @@ name = "conformance-tests-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "conformance-tests",
  "flate2",
  "regex",
  "tar",

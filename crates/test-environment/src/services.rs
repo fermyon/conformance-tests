@@ -58,17 +58,23 @@ impl Services {
 
     /// Get the host port that one of the services exposes a guest port on.
     pub fn get_port(&mut self, guest_port: u16) -> anyhow::Result<Option<u16>> {
-        let mut result = None;
+        let mut previous_result = None;
         for service in &mut self.services {
-            let host_port = service.ports().unwrap().get(&guest_port);
-            match result {
-                None => result = host_port.copied(),
-                Some(_) => {
-                    anyhow::bail!("more than one service exposes port {guest_port} to the host");
+            let next_result = service.ports().unwrap().get(&guest_port);
+            match (previous_result, next_result) {
+                // If we haven't yet found a port, store the lookup in `result`.
+                (None, next_result) => {
+                    previous_result = next_result.copied().map(|p| (service.name(), p))
                 }
+                // If a service already exposed the port, and we found it again, error.
+                (Some((name, _)), Some(_)) => {
+                    anyhow::bail!("service '{name}' already exposes port {guest_port} to the host");
+                }
+                // If a previous service exposed the port, but the next service doesn't, just continue.
+                (Some(_), None) => {}
             }
         }
-        Ok(result)
+        Ok(previous_result.map(|(_, p)| p))
     }
 }
 

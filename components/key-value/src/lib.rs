@@ -78,6 +78,7 @@ fn response(status: u16, body: &[u8]) -> OutgoingResponse {
     let response = OutgoingResponse::new(Headers::new());
     response.set_status_code(status).unwrap();
     if !body.is_empty() {
+        assert!(body.len() <= 4096);
         let outgoing_body = response.body().unwrap();
         {
             let outgoing_stream = outgoing_body.write().unwrap();

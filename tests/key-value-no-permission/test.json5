@@ -1,0 +1,35 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    }
+                ]
+            },
+            "response": {
+                "status": 500,
+                "headers": [
+                    {
+                        "name": "transfer-encoding",
+                        "value": "chunked",
+                        optional: true
+                    },
+                    {
+                        "name": "content-length",
+                        "value": "19",
+                        optional: true
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ],
+                "body": "Error::AccessDenied"
+            }
+        }
+    ],
+}

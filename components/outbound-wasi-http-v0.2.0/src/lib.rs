@@ -86,13 +86,9 @@ impl incoming_handler::Guest for Component {
             ResponseOutparam::set(outparam, Ok(response));
 
             loop {
-                match incoming_stream.read(1024) {
+                match incoming_stream.blocking_read(1024) {
                     Ok(buffer) => {
-                        if buffer.is_empty() {
-                            incoming_stream.subscribe().block();
-                        } else {
-                            outgoing_stream.blocking_write_and_flush(&buffer).unwrap();
-                        }
+                        outgoing_stream.blocking_write_and_flush(&buffer).unwrap();
                     }
                     Err(StreamError::Closed) => break,
                     Err(StreamError::LastOperationFailed(error)) => {
@@ -108,23 +104,10 @@ impl incoming_handler::Guest for Component {
 }
 
 fn write_outgoing_body(outgoing_body: OutgoingBody, message: &[u8]) {
+    assert!(message.len() <= 4096);
     {
         let outgoing_stream = outgoing_body.write().unwrap();
-        let mut offset = 0;
-        loop {
-            let write = outgoing_stream.check_write().unwrap();
-            if write == 0 {
-                outgoing_stream.subscribe().block();
-            } else {
-                let count = (write as usize).min(message.len() - offset);
-                outgoing_stream.write(&message[offset..][..count]).unwrap();
-                offset += count;
-                if offset == message.len() {
-                    outgoing_stream.flush().unwrap();
-                    break;
-                }
-            }
-        }
+        outgoing_stream.blocking_write_and_flush(message).unwrap();
         // The outgoing stream must be dropped before the outgoing body is finished.
     }
     OutgoingBody::finish(outgoing_body, None).unwrap();

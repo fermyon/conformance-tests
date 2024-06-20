@@ -3,7 +3,7 @@ use bindings::{
     exports::wasi::http0_2_0::incoming_handler::Guest,
     fermyon::spin2_0_0::key_value::{Error, Store},
     wasi::http0_2_0::types::{
-        ErrorCode, Headers, IncomingRequest, OutgoingResponse, ResponseOutparam,
+        ErrorCode, Headers, IncomingRequest, OutgoingBody, OutgoingResponse, ResponseOutparam,
     },
 };
 
@@ -21,15 +21,21 @@ struct Component;
 impl Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
         let result = handle(request)
-            .map(|_| OutgoingResponse::new(Headers::new()))
+            .map(|r| match r {
+                Some(e) => response(500, format!("{e}").as_bytes()),
+                None => response(200, b""),
+            })
             .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
         ResponseOutparam::set(response_out, result)
     }
 }
 
-fn handle(_req: IncomingRequest) -> anyhow::Result<()> {
+fn handle(_req: IncomingRequest) -> anyhow::Result<Option<Error>> {
     anyhow::ensure!(matches!(Store::open("forbidden"), Err(Error::AccessDenied)));
-    let store = Store::open("default").context("could not open 'default' store")?;
+    let store = match Store::open("default") {
+        Ok(s) => s,
+        Err(e) => return Ok(Some(e)),
+    };
 
     // Ensure nothing set in `bar` key
     store.delete("bar").context("could not delete 'bar' key")?;
@@ -65,5 +71,21 @@ fn handle(_req: IncomingRequest) -> anyhow::Result<()> {
     anyhow::ensure!(matches!(store.get("qux"), Ok(None)));
     anyhow::ensure!(matches!(store.get_keys().as_deref(), Ok(&[])));
 
-    Ok(())
+    Ok(None)
+}
+
+fn response(status: u16, body: &[u8]) -> OutgoingResponse {
+    let response = OutgoingResponse::new(Headers::new());
+    response.set_status_code(status).unwrap();
+    if !body.is_empty() {
+        assert!(body.len() <= 4096);
+        let outgoing_body = response.body().unwrap();
+        {
+            let outgoing_stream = outgoing_body.write().unwrap();
+            outgoing_stream.blocking_write_and_flush(body).unwrap();
+            // The outgoing stream must be dropped before the outgoing body is finished.
+        }
+        OutgoingBody::finish(outgoing_body, None).unwrap();
+    }
+    response
 }

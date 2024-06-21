@@ -58,7 +58,7 @@ fn make_request(address: SocketAddr) -> anyhow::Result<()> {
             SocketAddr::V6(address) => {
                 let ip = address.ip().segments();
                 IpSocketAddress::Ipv6(Ipv6SocketAddress {
-                    address: (ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6], ip[7]),
+                    address: ip.into(),
                     port: address.port(),
                     flow_info: 0,
                     scope_id: 0,
@@ -67,7 +67,7 @@ fn make_request(address: SocketAddr) -> anyhow::Result<()> {
             SocketAddr::V4(address) => {
                 let ip = address.ip().octets();
                 IpSocketAddress::Ipv4(Ipv4SocketAddress {
-                    address: (ip[0], ip[1], ip[2], ip[3]),
+                    address: ip.into(),
                     port: address.port(),
                 })
             }

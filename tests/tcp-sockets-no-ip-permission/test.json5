@@ -22,6 +22,10 @@
                         "optional": true
                     },
                     {
+                        "name": "content-length",
+                        "optional": true
+                    },
+                    {
                         "name": "Date",
                         "optional": true
                     }

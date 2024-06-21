@@ -6,8 +6,8 @@ authors = ["Fermyon Engineering <engineering@fermyon.com>"]
 version = "0.1.0"
 
 [variables]
-addr_prefix = { default = "127.0.0.0"}
-prefix_len = { default = "24"}
+addr_prefix = { default = "127.0.0.0" }
+prefix_len = { default = "24" }
 
 [[trigger.http]]
 route = "/"

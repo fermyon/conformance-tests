@@ -3,6 +3,30 @@ pub mod config;
 use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
+/// Run the conformance tests
+pub fn run_tests(
+    run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
+) -> anyhow::Result<()> {
+    let tests_dir = download_tests()?;
+    run_tests_from(tests_dir, run)
+}
+
+/// Run the conformance tests located in the given directory
+pub fn run_tests_from(
+    tests_dir: impl AsRef<Path>,
+    run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
+) -> anyhow::Result<()> {
+    let trials = tests_iter(tests_dir)?
+        .map(|test| {
+            let run = run.clone();
+            libtest_mimic::Trial::test(test.name.clone(), move || {
+                Ok(run(test).map_err(FullError::from)?)
+            })
+        })
+        .collect();
+    libtest_mimic::run(&Default::default(), trials).exit();
+}
+
 /// Download the conformance tests and return the path to the directory where they are written to
 pub fn download_tests() -> anyhow::Result<std::path::PathBuf> {
     let response = reqwest::blocking::get(
@@ -35,7 +59,7 @@ pub fn download_tests() -> anyhow::Result<std::path::PathBuf> {
 /// Read the tests directory and get an iterator to each test's directory
 ///
 /// The test directory can be downloaded using the `download_tests` function.
-pub fn tests(tests_dir: &Path) -> anyhow::Result<impl Iterator<Item = Test>> {
+pub fn tests_iter(tests_dir: impl AsRef<Path>) -> anyhow::Result<impl Iterator<Item = Test>> {
     // Like `?` but returns error wrapped in `Some` for use in `filter_map`
     macro_rules! r#try {
         ($e:expr) => {
@@ -84,6 +108,8 @@ pub struct Test {
 }
 
 pub mod assertions {
+    use crate::indent_lines;
+
     use super::config::Response as ExpectedResponse;
     use test_environment::http::Response as ActualResponse;
 
@@ -95,12 +121,15 @@ pub mod assertions {
         // We assert the status code first, because if it's wrong, the body and headers are likely wrong
         anyhow::ensure!(
             actual.status() == expected.status,
-            "actual status {} != expected status {}\nbody:\n{}",
+            "actual status {} != expected status {} - body: {}",
             actual.status(),
             expected.status,
-            actual
-                .text()
-                .unwrap_or_else(|_| String::from("<invalid utf-8>"))
+            indent_lines(
+                &actual
+                    .text()
+                    .unwrap_or_else(|_| String::from("<invalid utf-8>")),
+                2
+            )
         );
 
         // We assert the body next, because if it's wrong, it usually has more information as to why
@@ -111,7 +140,9 @@ pub mod assertions {
 
         anyhow::ensure!(
             actual_body == expected_body,
-            "actual body != expected body\nactual:\n{actual_body}\nexpected:\n{expected_body}"
+            "actual body != expected body\nactual: {actual_body}\nexpected: {expected_body}",
+            actual_body = indent_lines(&actual_body, 2),
+            expected_body = indent_lines(expected_body, 2)
         );
 
         let mut actual_headers = actual
@@ -147,4 +178,52 @@ pub mod assertions {
 
         Ok(())
     }
+}
+
+/// A wrapper around `anyhow::Error` that prints the full chain of causes
+struct FullError {
+    error: anyhow::Error,
+}
+
+impl From<anyhow::Error> for FullError {
+    fn from(error: anyhow::Error) -> Self {
+        Self { error }
+    }
+}
+
+impl std::fmt::Display for FullError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", indent_lines(&self.error.to_string(), 2))?;
+        write_error_chain(f, &self.error)?;
+        Ok(())
+    }
+}
+
+fn write_error_chain(mut f: impl std::fmt::Write, err: &anyhow::Error) -> std::fmt::Result {
+    let Some(cause) = err.source() else {
+        return Ok(());
+    };
+    let is_multiple = cause.source().is_some();
+    writeln!(f, "\nCaused by:")?;
+    for (i, err) in err.chain().skip(1).enumerate() {
+        let err = indent_lines(&err.to_string(), 6);
+        if is_multiple {
+            writeln!(f, "{i:>4}: {err}")?;
+        } else {
+            writeln!(f, "      {err}")?;
+        }
+    }
+    Ok(())
+}
+
+/// Format string such that all lines after the first are indented
+fn indent_lines(str: &str, indent: usize) -> String {
+    str.lines()
+        .enumerate()
+        .map(|(i, line)| {
+            let indent = if i == 0 { 0 } else { indent };
+            format!("{}{}", " ".repeat(indent), line)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

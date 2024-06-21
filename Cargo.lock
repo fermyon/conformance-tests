@@ -1251,6 +1251,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tcp-sockets-test-component"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "temp-dir"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,34 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    },
+                    {
+                        "name": "address",
+                        "value": "127.0.0.1:5000"
+                    }
+                ]
+            },
+            "response": {
+                "status": 500,
+                "headers": [
+                    {
+                        "name": "transfer-encoding",
+                        "optional": true
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ],
+                "body": "access-denied (error 1)"
+            },
+        }
+    ],
+    "preconditions": [{"kind": "tcp-echo"}]
+}

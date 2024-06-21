@@ -166,6 +166,12 @@ pub enum Precondition {
     /// and it should update any references that test assets make to port 80 to
     /// the port of the echo server.
     HttpEcho,
+    /// The test expects outgoing TCP requests to be echoed back
+    ///
+    /// The test runner should start a TCP server that echoes back the request
+    /// and it should update any references that test assets make to port 5000 to
+    /// the port of the echo server.
+    TcpEcho,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

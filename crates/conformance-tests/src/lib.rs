@@ -19,7 +19,7 @@ pub fn run_tests_from(
     let trials = tests_iter(tests_dir)?
         .map(|test| {
             let run = run.clone();
-            libtest_mimic::Trial::test(&test.name.clone(), move || {
+            libtest_mimic::Trial::test(test.name.clone(), move || {
                 Ok(run(test).map_err(FullError::from)?)
             })
         })
@@ -142,7 +142,7 @@ pub mod assertions {
             actual_body == expected_body,
             "actual body != expected body\nactual: {actual_body}\nexpected: {expected_body}",
             actual_body = indent_lines(&actual_body, 2),
-            expected_body = indent_lines(&expected_body, 2)
+            expected_body = indent_lines(expected_body, 2)
         );
 
         let mut actual_headers = actual

@@ -22,19 +22,19 @@ impl Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
         let result = handle(request)
             .map(|r| match r {
-                Some(e) => response(500, format!("{e}").as_bytes()),
-                None => response(200, b""),
+                Err(e) => response(500, format!("{e}").as_bytes()),
+                Ok(()) => response(200, b""),
             })
             .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
         ResponseOutparam::set(response_out, result)
     }
 }
 
-fn handle(_req: IncomingRequest) -> anyhow::Result<Option<Error>> {
+fn handle(_req: IncomingRequest) -> anyhow::Result<Result<(), Error>> {
     anyhow::ensure!(matches!(Store::open("forbidden"), Err(Error::AccessDenied)));
     let store = match Store::open("default") {
         Ok(s) => s,
-        Err(e) => return Ok(Some(e)),
+        Err(e) => return Ok(Err(e)),
     };
 
     // Ensure nothing set in `bar` key
@@ -71,7 +71,7 @@ fn handle(_req: IncomingRequest) -> anyhow::Result<Option<Error>> {
     anyhow::ensure!(matches!(store.get("qux"), Ok(None)));
     anyhow::ensure!(matches!(store.get_keys().as_deref(), Ok(&[])));
 
-    Ok(None)
+    Ok(Ok(()))
 }
 
 fn response(status: u16, body: &[u8]) -> OutgoingResponse {

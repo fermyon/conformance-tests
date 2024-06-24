@@ -20,7 +20,7 @@ def echo_server():
     server_socket.listen(5)
     _, port = server_socket.getsockname()
     print(f"Listening on {host}...")
-    print(f"PORT=(5000,{port})")
+    print(f"PORT=(7,{port})")
     print(f"READY", flush=True)
 
     try:

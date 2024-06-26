@@ -31,11 +31,12 @@ impl Guest for Component {
 const REDIS_ADDRESS_HEADER: &str = "REDIS_ADDRESS";
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    let Some(address) = request.headers().entries().into_iter().find_map(|(k, v)| {
-        (k == REDIS_ADDRESS_HEADER)
-            .then_some(v)
-            .and_then(|v| String::from_utf8(v).ok())
-    }) else {
+    let Some(address) = request
+        .headers()
+        .get(&REDIS_ADDRESS_HEADER.to_owned())
+        .pop()
+        .and_then(|v| String::from_utf8(v).ok())
+    else {
         // Otherwise, return a 400 Bad Request response.
         return Ok(response(400, b"Bad Request"));
     };
@@ -94,12 +95,15 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
         ],
     )?;
 
-    connection.execute(
+    let values = connection.execute(
         "incr",
         &[redis::RedisParameter::Binary(b"int-key".to_vec())],
     )?;
 
-    anyhow::ensure!(matches!(values.as_slice(), &[redis::RedisResult::Int64(1)]));
+    anyhow::ensure!(
+        matches!(values.as_slice(), &[redis::RedisResult::Int64(1)]),
+        "call to `execute('incr')` returned unexpected result: {values:?} != &[redis::RedisResult::Int64(1)]"
+    );
 
     let values =
         connection.execute("get", &[redis::RedisParameter::Binary(b"int-key".to_vec())])?;

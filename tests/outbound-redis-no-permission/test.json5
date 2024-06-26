@@ -7,6 +7,10 @@
                     {
                         "name": "Host",
                         "value": "example.com"
+                    },
+                    {
+                        "name": "redis_address",
+                        "value": "redis://localhost:%{port=6379}",
                     }
                 ]
             },
@@ -15,7 +19,11 @@
                 "headers": [
                     {
                         "name": "Content-Length",
-                        "value": "0"
+                        "optional": true,
+                    },
+                    {
+                        "name": "transfer-encoding",
+                        "optional": true
                     },
                     {
                         "name": "Date",

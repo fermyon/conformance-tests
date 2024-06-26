@@ -174,6 +174,8 @@ pub enum Precondition {
     TcpEcho,
     /// The test expects a sqlite service to be available.
     Sqlite,
+    /// The test expects a Redis service to be available.
+    Redis,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

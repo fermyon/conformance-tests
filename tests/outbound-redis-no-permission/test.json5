@@ -1,0 +1,30 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    }
+                ]
+            },
+            "response": {
+                "status": 500,
+                "headers": [
+                    {
+                        "name": "Content-Length",
+                        "value": "0"
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ],
+                "body": "Error::InvalidAddress"
+            }
+        }
+    ],
+    "preconditions": [ { "kind": "redis" } ]
+}

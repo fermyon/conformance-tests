@@ -1,0 +1,28 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    }
+                ]
+            },
+            "response": {
+                "headers": [
+                    {
+                        "name": "Content-Length",
+                        "value": "0"
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ]
+            }
+        }
+    ],
+    "preconditions": [ { "kind": "redis" } ]
+}

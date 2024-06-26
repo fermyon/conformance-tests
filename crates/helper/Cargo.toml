@@ -1,12 +1,8 @@
 [package]
-name = "key-value"
+name = "helper"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
 anyhow = { workspace = true }
-helper = { path = "../../crates/helper" }
 wit-bindgen = { workspace = true }

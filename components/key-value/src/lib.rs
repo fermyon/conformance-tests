@@ -1,41 +1,26 @@
-use anyhow::Context;
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::Guest,
-    fermyon::spin2_0_0::key_value::{Error, Store},
-    wasi::http0_2_0::types::{
-        ErrorCode, Headers, IncomingRequest, OutgoingBody, OutgoingResponse, ResponseOutparam,
-    },
-};
-
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
+use anyhow::Context as _;
 
 struct Component;
 
+helper::gen_http_trigger_bindings!(Component);
+
+use bindings::{
+    exports::wasi::http0_2_0::incoming_handler::Guest,
+    fermyon::spin2_0_0::key_value::{Error, Store},
+};
+use helper::bindings::wasi::http0_2_0::types::{
+    IncomingRequest, OutgoingResponse, ResponseOutparam,
+};
+
 impl Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let result = handle(request)
-            .map(|r| match r {
-                Err(e) => response(500, format!("{e}").as_bytes()),
-                Ok(()) => response(200, b""),
-            })
-            .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
-        ResponseOutparam::set(response_out, result)
+        helper::handle_result(handle(request), response_out);
     }
 }
 
-fn handle(_req: IncomingRequest) -> anyhow::Result<Result<(), Error>> {
+fn handle(_req: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     anyhow::ensure!(matches!(Store::open("forbidden"), Err(Error::AccessDenied)));
-    let store = match Store::open("default") {
-        Ok(s) => s,
-        Err(e) => return Ok(Err(e)),
-    };
+    let store = Store::open("default")?;
 
     // Ensure nothing set in `bar` key
     store.delete("bar").context("could not delete 'bar' key")?;
@@ -71,21 +56,5 @@ fn handle(_req: IncomingRequest) -> anyhow::Result<Result<(), Error>> {
     anyhow::ensure!(matches!(store.get("qux"), Ok(None)));
     anyhow::ensure!(matches!(store.get_keys().as_deref(), Ok(&[])));
 
-    Ok(Ok(()))
-}
-
-fn response(status: u16, body: &[u8]) -> OutgoingResponse {
-    let response = OutgoingResponse::new(Headers::new());
-    response.set_status_code(status).unwrap();
-    if !body.is_empty() {
-        assert!(body.len() <= 4096);
-        let outgoing_body = response.body().unwrap();
-        {
-            let outgoing_stream = outgoing_body.write().unwrap();
-            outgoing_stream.blocking_write_and_flush(body).unwrap();
-            // The outgoing stream must be dropped before the outgoing body is finished.
-        }
-        OutgoingBody::finish(outgoing_body, None).unwrap();
-    }
-    response
+    Ok(helper::ok_response())
 }

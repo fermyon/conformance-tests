@@ -8,4 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = { workspace = true }
+helper = { path = "../../crates/helper" }
 wit-bindgen = { workspace = true }

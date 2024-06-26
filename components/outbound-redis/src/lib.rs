@@ -1,44 +1,29 @@
 use anyhow::Context as _;
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::Guest,
-    fermyon::spin2_0_0::redis,
-    wasi::http0_2_0::types::{
-        Headers, IncomingRequest, OutgoingBody, OutgoingResponse, ResponseOutparam,
-    },
-};
 
 struct Component;
 
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
+helper::gen_http_trigger_bindings!(Component);
 
-impl Guest for Component {
+use helper::bindings::{
+    fermyon::spin2_0_0::redis,
+    wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
+};
+
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let result = match handle(request) {
-            Err(e) => response(500, format!("{e}").as_bytes()),
-            Ok(r) => r,
-        };
-        ResponseOutparam::set(response_out, Ok(result))
+        helper::handle_result(handle(request), response_out);
     }
 }
 
 const REDIS_ADDRESS_HEADER: &str = "REDIS_ADDRESS";
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    let Some(address) = request
-        .headers()
-        .get(&REDIS_ADDRESS_HEADER.to_owned())
-        .pop()
-        .and_then(|v| String::from_utf8(v).ok())
-    else {
+    let Some(address) = helper::get_header(request, &REDIS_ADDRESS_HEADER.to_owned()) else {
         // Otherwise, return a 400 Bad Request response.
-        return Ok(response(400, b"Bad Request"));
+        return Ok(helper::response(
+            400,
+            format!("missing header: {REDIS_ADDRESS_HEADER}").as_bytes(),
+        ));
     };
     let connection = redis::Connection::open(&address)?;
 
@@ -87,21 +72,5 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
         values.as_slice(),
         &[redis::RedisResult::Binary(ref b)] if b == b"Eureka! I've got it!"));
 
-    Ok(response(200, b""))
-}
-
-fn response(status: u16, body: &[u8]) -> OutgoingResponse {
-    let response = OutgoingResponse::new(Headers::new());
-    response.set_status_code(status).unwrap();
-    if !body.is_empty() {
-        assert!(body.len() <= 4096);
-        let outgoing_body = response.body().unwrap();
-        {
-            let outgoing_stream = outgoing_body.write().unwrap();
-            outgoing_stream.blocking_write_and_flush(body).unwrap();
-            // The outgoing stream must be dropped before the outgoing body is finished.
-        }
-        OutgoingBody::finish(outgoing_body, None).unwrap();
-    }
-    response
+    Ok(helper::ok_response())
 }

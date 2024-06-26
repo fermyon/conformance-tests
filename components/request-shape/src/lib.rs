@@ -1,38 +1,24 @@
-use anyhow::Context;
+use anyhow::Context as _;
 use std::collections::HashMap;
 
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
-
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::{Guest, IncomingRequest, ResponseOutparam},
-    wasi::http0_2_0::types::{ErrorCode, Headers, OutgoingResponse},
+use helper::bindings::wasi::http0_2_0::types::{
+    IncomingRequest, Method, OutgoingResponse, ResponseOutparam, Scheme,
 };
 
-use crate::bindings::wasi::http0_2_0::types::{Method, Scheme};
-
 pub struct Component;
+helper::gen_http_trigger_bindings!(Component);
 
-impl Guest for Component {
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let result = handle(request)
-            .map(|_| OutgoingResponse::new(Headers::new()))
-            .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
-        ResponseOutparam::set(response_out, result)
+        helper::handle_result(handle(request), response_out);
     }
 }
 
-fn handle(req: IncomingRequest) -> anyhow::Result<()> {
+fn handle(req: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     check_method(&req)?;
     check_url(&req)?;
     check_headers(&req)?;
-    Ok(())
+    Ok(helper::ok_response())
 }
 
 fn check_method(req: &IncomingRequest) -> anyhow::Result<()> {

@@ -1,12 +1,8 @@
 [package]
-name = "sqlite-test-component"
+name = "helper"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-helper = { workspace = true }
 wit-bindgen = { workspace = true }
-
-[lib]
-crate-type = ["cdylib"]

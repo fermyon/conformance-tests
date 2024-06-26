@@ -1,32 +1,19 @@
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::Guest,
+use helper::bindings::{
     fermyon::spin2_0_0::variables::{get, Error},
-    wasi::http0_2_0::types::{
-        ErrorCode, Headers, IncomingRequest, OutgoingResponse, ResponseOutparam,
-    },
+    wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
 };
-
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
 
 struct Component;
 
-impl Guest for Component {
+helper::gen_http_trigger_bindings!(Component);
+
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let result = handle(request)
-            .map(|_| OutgoingResponse::new(Headers::new()))
-            .map_err(|e| ErrorCode::InternalError(Some(e.to_string())));
-        ResponseOutparam::set(response_out, result)
+        helper::handle_result(handle(request), response_out);
     }
 }
 
-fn handle(_req: IncomingRequest) -> anyhow::Result<()> {
+fn handle(_req: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     anyhow::ensure!(matches!(get("variable"), Ok(val) if val == "value"));
     anyhow::ensure!(matches!(get("non_existent"), Err(Error::Undefined(_))));
 
@@ -34,5 +21,5 @@ fn handle(_req: IncomingRequest) -> anyhow::Result<()> {
     anyhow::ensure!(matches!(get("invalid!name"), Err(Error::InvalidName(_))));
     anyhow::ensure!(matches!(get("4invalidname"), Err(Error::InvalidName(_))));
 
-    Ok(())
+    Ok(helper::ok_response())
 }

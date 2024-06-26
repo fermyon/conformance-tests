@@ -1,33 +1,19 @@
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::Guest,
+use helper::bindings::{
     fermyon::spin2_0_0::sqlite::{Connection, Error, Value},
-    wasi::http0_2_0::types::{
-        Headers, IncomingRequest, OutgoingBody, OutgoingResponse, ResponseOutparam,
-    },
+    wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
 };
 
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
-
 struct Component;
-impl Guest for Component {
-    fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let result = match handle(request) {
-            Ok(()) => response(200, b""),
-            Err(e) => response(500, format!("{e}").as_bytes()),
-        };
 
-        ResponseOutparam::set(response_out, Ok(result))
+helper::gen_http_trigger_bindings!(Component);
+
+impl bindings::Guest for Component {
+    fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
+        helper::handle_result(handle(request), response_out)
     }
 }
 
-fn handle(_request: IncomingRequest) -> anyhow::Result<()> {
+fn handle(_request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     anyhow::ensure!(matches!(
         Connection::open("forbidden"),
         Err(Error::AccessDenied)
@@ -61,21 +47,5 @@ fn handle(_request: IncomingRequest) -> anyhow::Result<()> {
     anyhow::ensure!(matches!(fetched_key, Value::Text(t) if t == "my_key"));
     anyhow::ensure!(matches!(fetched_value, Value::Text(t) if t == "my_value"));
 
-    Ok(())
-}
-
-fn response(status: u16, body: &[u8]) -> OutgoingResponse {
-    let response = OutgoingResponse::new(Headers::new());
-    response.set_status_code(status).unwrap();
-    if !body.is_empty() {
-        assert!(body.len() <= 4096);
-        let outgoing_body = response.body().unwrap();
-        {
-            let outgoing_stream = outgoing_body.write().unwrap();
-            outgoing_stream.blocking_write_and_flush(body).unwrap();
-            // The outgoing stream must be dropped before the outgoing body is finished.
-        }
-        OutgoingBody::finish(outgoing_body, None).unwrap();
-    }
-    response
+    Ok(helper::ok_response())
 }

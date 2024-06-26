@@ -172,6 +172,8 @@ pub enum Precondition {
     /// and it should update any references that test assets make to port 5000 to
     /// the port of the echo server.
     TcpEcho,
+    /// The test expects a sqlite service to be available.
+    Sqlite,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

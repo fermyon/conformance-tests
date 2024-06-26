@@ -1000,6 +1000,7 @@ name = "request-shape"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "helper",
  "wit-bindgen",
 ]
 
@@ -1218,6 +1219,7 @@ name = "sqlite-test-component"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "helper",
  "wit-bindgen",
 ]
 
@@ -1281,6 +1283,7 @@ name = "tcp-sockets-test-component"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "helper",
  "wit-bindgen",
 ]
 
@@ -1521,6 +1524,7 @@ name = "variables"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "helper",
  "wit-bindgen",
 ]
 
@@ -1555,6 +1559,8 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 name = "wasi-http-rust-0-2-0"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "helper",
  "url",
  "wit-bindgen",
 ]

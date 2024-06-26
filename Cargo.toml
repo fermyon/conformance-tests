@@ -17,4 +17,5 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
+helper = { path = "crates/helper" }
 wit-bindgen = "0.26"

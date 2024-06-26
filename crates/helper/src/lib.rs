@@ -1,9 +1,10 @@
-///! Helper functions for the conformance test components
+//! Helper functions for the conformance test components
 
+/// Bindings to all imports
 pub mod bindings {
     wit_bindgen::generate!({
-            world: "wasi-http",
-            path:  "../../wit",
+        world: "platform",
+        path:  "../../wit",
     });
 }
 
@@ -17,10 +18,13 @@ macro_rules! gen_http_trigger_bindings {
                  path:  "../../wit",
                  with: {
                      "wasi:http/types@0.2.0": helper::bindings::wasi::http0_2_0::types,
+                     "wasi:http/outgoing-handler@0.2.0": helper::bindings::wasi::http0_2_0::outgoing_handler,
                  }
             });
             use super::$ident;
             export!($ident);
+
+            pub use exports::wasi::http0_2_0::incoming_handler::Guest;
         }
 
     };
@@ -35,19 +39,23 @@ pub fn response(status: u16, body: &[u8]) -> OutgoingResponse {
     let response = OutgoingResponse::new(Headers::new());
     response.set_status_code(status).unwrap();
     if !body.is_empty() {
-        assert!(body.len() <= 4096);
-        let outgoing_body = response.body().unwrap();
-        {
-            let outgoing_stream = outgoing_body.write().unwrap();
-            outgoing_stream.blocking_write_and_flush(body).unwrap();
-            // The outgoing stream must be dropped before the outgoing body is finished.
-        }
-        OutgoingBody::finish(outgoing_body, None).unwrap();
+        write_outgoing_body(response.body().unwrap(), body);
     }
     response
 }
 
-/// Handle the result of a function that returns an `OutgoingResponse`.
+/// Write the given content to the outgoing body.
+pub fn write_outgoing_body(outgoing_body: OutgoingBody, content: &[u8]) {
+    assert!(content.len() <= 4096);
+    {
+        let outgoing_stream = outgoing_body.write().unwrap();
+        outgoing_stream.blocking_write_and_flush(content).unwrap();
+        // The outgoing stream must be dropped before the outgoing body is finished.
+    }
+    OutgoingBody::finish(outgoing_body, None).unwrap();
+}
+
+/// Return a 500 response if the result is an error, otherwise return the response.
 pub fn handle_result(result: anyhow::Result<OutgoingResponse>, response_out: ResponseOutparam) {
     let result = match result {
         Err(e) => response(500, format!("{e}").as_bytes()),
@@ -56,6 +64,7 @@ pub fn handle_result(result: anyhow::Result<OutgoingResponse>, response_out: Res
     ResponseOutparam::set(response_out, Ok(result))
 }
 
+/// Get the value of a header from a request.
 pub fn get_header(request: IncomingRequest, header_key: &String) -> Option<String> {
     request
         .headers()

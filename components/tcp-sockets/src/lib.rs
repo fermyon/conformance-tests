@@ -1,55 +1,38 @@
-use bindings::{
-    exports::wasi::http0_2_0::incoming_handler::Guest,
-    wasi::{
-        http0_2_0::types::{
-            Headers, IncomingRequest, OutgoingBody, OutgoingResponse, ResponseOutparam,
+use helper::bindings::wasi::{
+    http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
+    io0_2_0::poll,
+    sockets0_2_0::{
+        instance_network,
+        network::{
+            ErrorCode, IpAddressFamily, IpSocketAddress, Ipv4SocketAddress, Ipv6SocketAddress,
         },
-        io0_2_0::poll,
-        sockets0_2_0::{
-            instance_network,
-            network::{
-                ErrorCode, IpAddressFamily, IpSocketAddress, Ipv4SocketAddress, Ipv6SocketAddress,
-            },
-            tcp_create_socket,
-        },
+        tcp_create_socket,
     },
 };
 
 use std::net::SocketAddr;
 
-mod bindings {
-    wit_bindgen::generate!({
-            world: "http-trigger",
-            path:  "../../wit",
-    });
-    use super::Component;
-    export!(Component);
-}
+helper::gen_http_trigger_bindings!(Component);
 
 struct Component;
 
-impl Guest for Component {
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, outparam: ResponseOutparam) {
-        // The request must have a "url" header.
-        let Some(address) = request.headers().entries().iter().find_map(|(k, v)| {
-            (k == "address")
-                .then_some(v)
-                .and_then(|v| std::str::from_utf8(v).ok())
-                .and_then(|v| v.parse().ok())
-        }) else {
-            // Otherwise, return a 400 Bad Request response.
-            return_response(outparam, 400, b"Bad Request");
-            return;
-        };
-
-        match make_request(address) {
-            Ok(()) => return_response(outparam, 200, b""),
-            Err(e) => return_response(outparam, 500, format!("{e}").as_bytes()),
-        }
+        helper::handle_result(handle(request), outparam);
     }
 }
 
-fn make_request(address: SocketAddr) -> anyhow::Result<()> {
+fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
+    // The request must have a "url" header.
+    let Some(address) = request.headers().entries().iter().find_map(|(k, v)| {
+        (k == "address")
+            .then_some(v)
+            .and_then(|v| std::str::from_utf8(v).ok())
+            .and_then(|v| v.parse().ok())
+    }) else {
+        // Otherwise, return a 400 Bad Request response.
+        return Ok(helper::response(400, b"Bad Request"));
+    };
     let client = tcp_create_socket::create_tcp_socket(IpAddressFamily::Ipv4)?;
 
     client.start_connect(
@@ -92,23 +75,5 @@ fn make_request(address: SocketAddr) -> anyhow::Result<()> {
         buffer.extend(chunk);
     }
     assert_eq!(buffer.as_slice(), message);
-    Ok(())
-}
-
-fn write_outgoing_body(outgoing_body: OutgoingBody, message: &[u8]) {
-    assert!(message.len() <= 4096);
-    {
-        let outgoing_stream = outgoing_body.write().unwrap();
-        outgoing_stream.blocking_write_and_flush(message).unwrap();
-        // The outgoing stream must be dropped before the outgoing body is finished.
-    }
-    OutgoingBody::finish(outgoing_body, None).unwrap();
-}
-
-fn return_response(outparam: ResponseOutparam, status: u16, body: &[u8]) {
-    let response = OutgoingResponse::new(Headers::new());
-    response.set_status_code(status).unwrap();
-    write_outgoing_body(response.body().unwrap(), body);
-
-    ResponseOutparam::set(outparam, Ok(response));
+    Ok(helper::ok_response())
 }

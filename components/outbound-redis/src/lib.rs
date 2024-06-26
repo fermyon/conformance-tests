@@ -3,12 +3,13 @@ use anyhow::Context as _;
 struct Component;
 
 helper::gen_http_trigger_bindings!(Component);
-use bindings::{exports::wasi::http0_2_0::incoming_handler::Guest, fermyon::spin2_0_0::redis};
-use helper::bindings::wasi::http0_2_0::types::{
-    IncomingRequest, OutgoingResponse, ResponseOutparam,
+
+use helper::bindings::{
+    fermyon::spin2_0_0::redis,
+    wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
 };
 
-impl Guest for Component {
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
         helper::handle_result(handle(request), response_out);
     }

@@ -1,26 +1,16 @@
-wit_bindgen::generate!({
-    path: "../../wit",
-    world: "wasi:http/proxy@0.2.0",
-});
-
-use exports::wasi::http0_2_0::incoming_handler;
-use url::Url;
-use wasi::{
-    http0_2_0::{
-        outgoing_handler,
-        types::{
-            Headers, IncomingRequest, Method, OutgoingBody, OutgoingRequest, OutgoingResponse,
-            ResponseOutparam, Scheme,
-        },
-    },
-    io0_2_0::streams::StreamError,
+use helper::bindings::wasi::http0_2_0::outgoing_handler;
+use helper::bindings::wasi::http0_2_0::types::{
+    Headers, IncomingRequest, Method, OutgoingBody, OutgoingRequest, OutgoingResponse,
+    ResponseOutparam, Scheme,
 };
+use helper::bindings::wasi::io0_2_0::streams::StreamError;
+use url::Url;
 
 struct Component;
 
-export!(Component);
+helper::gen_http_trigger_bindings!(Component);
 
-impl incoming_handler::Guest for Component {
+impl bindings::Guest for Component {
     fn handle(request: IncomingRequest, outparam: ResponseOutparam) {
         // The request must have a "url" header.
         let Some(url) = request.headers().entries().iter().find_map(|(k, v)| {
@@ -30,7 +20,7 @@ impl incoming_handler::Guest for Component {
                 .and_then(|v| Url::parse(v).ok())
         }) else {
             // Otherwise, return a 400 Bad Request response.
-            return_response(outparam, 400, b"Bad Request");
+            return_response(outparam, 400, b"missing header: url");
             return;
         };
 
@@ -55,7 +45,7 @@ impl incoming_handler::Guest for Component {
             .unwrap();
 
         // Write the request body.
-        write_outgoing_body(outgoing_request.body().unwrap(), b"Hello, world!");
+        helper::write_outgoing_body(outgoing_request.body().unwrap(), b"Hello, world!");
 
         // Get the incoming response.
         let response = match outgoing_handler::handle(outgoing_request, None) {
@@ -103,20 +93,7 @@ impl incoming_handler::Guest for Component {
     }
 }
 
-fn write_outgoing_body(outgoing_body: OutgoingBody, message: &[u8]) {
-    assert!(message.len() <= 4096);
-    {
-        let outgoing_stream = outgoing_body.write().unwrap();
-        outgoing_stream.blocking_write_and_flush(message).unwrap();
-        // The outgoing stream must be dropped before the outgoing body is finished.
-    }
-    OutgoingBody::finish(outgoing_body, None).unwrap();
-}
-
 fn return_response(outparam: ResponseOutparam, status: u16, body: &[u8]) {
-    let response = OutgoingResponse::new(Headers::new());
-    response.set_status_code(status).unwrap();
-    write_outgoing_body(response.body().unwrap(), body);
-
+    let response = helper::response(status, body);
     ResponseOutparam::set(outparam, Ok(response));
 }

@@ -3,7 +3,7 @@ use anyhow::{bail, Context as _};
 use std::{
     cell::OnceCell,
     collections::HashMap,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -19,19 +19,22 @@ pub struct DockerService {
 
 impl DockerService {
     /// Start a docker container as a service
-    pub fn start(name: &str, dockerfile_path: &Path) -> anyhow::Result<Self> {
-        let lock_path = dockerfile_path
-            .parent()
-            .context("Dockerfile path has no parent")?
-            .join(format!("{name}.lock"));
+    pub fn start(name: &str, image: DockerImage, lock_dir: &Path) -> anyhow::Result<Self> {
+        let lock_path = lock_dir.join(format!("{name}.lock"));
         // TODO: ensure that `docker` is installed and available
-        let image_name = format!("test-environment/services/{name}");
         let mut lock =
             fslock::LockFile::open(&lock_path).context("failed to open service file lock")?;
         lock.lock().context("failed to obtain service file lock")?;
 
+        let image_name = match image {
+            DockerImage::FromDockerfile(dockerfile_path) => {
+                let image_name = format!("test-environment/services/{name}");
+                build_image(&dockerfile_path, &image_name)?;
+                image_name
+            }
+            DockerImage::FromRegistry(image_name) => image_name,
+        };
         stop_containers(&get_running_containers(&image_name)?)?;
-        build_image(dockerfile_path, &image_name)?;
         let container = run_container(&image_name)?;
 
         Ok(Self {
@@ -78,6 +81,11 @@ impl Container {
             })
             .collect()
     }
+}
+
+pub enum DockerImage {
+    FromDockerfile(PathBuf),
+    FromRegistry(String),
 }
 
 impl Drop for Container {

@@ -11,6 +11,8 @@ use anyhow::{bail, Context};
 use docker::DockerService;
 use python::PythonService;
 
+pub use docker::DockerImage;
+
 /// All the services that are running for a test.
 #[derive(Default)]
 pub struct Services {
@@ -19,17 +21,20 @@ pub struct Services {
 
 impl Services {
     /// Start all the required services given a path to service definitions
-    pub fn start(config: &ServicesConfig, working_dir: &Path) -> anyhow::Result<Self> {
+    pub fn start(config: ServicesConfig, working_dir: &Path) -> anyhow::Result<Self> {
+        let lock_dir = working_dir.join(".service-locks");
+        std::fs::create_dir(&lock_dir).context("could not create service lock dir")?;
         let mut services = Vec::new();
-        for service_def in &config.service_definitions {
-            let mut service: Box<dyn Service> = match &service_def.kind {
+        for service_def in config.service_definitions {
+            let mut service: Box<dyn Service> = match service_def.kind {
                 ServiceKind::Python { script } => Box::new(PythonService::start(
                     &service_def.name,
-                    script,
+                    &script,
                     working_dir,
+                    &lock_dir,
                 )?),
-                ServiceKind::Docker { dockerfile } => {
-                    Box::new(DockerService::start(&service_def.name, dockerfile)?)
+                ServiceKind::Docker { image } => {
+                    Box::new(DockerService::start(&service_def.name, image, &lock_dir)?)
                 }
             };
             service.ready()?;
@@ -89,9 +94,12 @@ impl ServicesConfig {
     /// Create a new services config with a list of built-in services to start.
     ///
     /// The built-in services are expected to have a definition file in the `services` directory with the same name as the service.
-    pub fn new(builtins: HashSet<&str>) -> anyhow::Result<Self> {
+    pub fn new<'a>(builtins: impl Into<Vec<&'a str>>) -> anyhow::Result<Self> {
         let definitions_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("services");
-        let service_definitions = get_builtin_service_definitions(builtins, &definitions_path)?;
+        let service_definitions = get_builtin_service_definitions(
+            builtins.into().into_iter().collect(),
+            &definitions_path,
+        )?;
         Ok(Self {
             service_definitions,
         })
@@ -152,7 +160,9 @@ fn get_builtin_service_definitions(
                         script: service_definitions_path.join(format!("{}.py", name)),
                     },
                     "Dockerfile" => ServiceKind::Docker {
-                        dockerfile: service_definitions_path.join(format!("{}.Dockerfile", name)),
+                        image: docker::DockerImage::FromDockerfile(
+                            service_definitions_path.join(format!("{}.Dockerfile", name)),
+                        ),
                     },
                     _ => bail!("unsupported service definition extension '{}'", extension),
                 },
@@ -163,14 +173,14 @@ fn get_builtin_service_definitions(
 
 /// A service definition.
 pub struct ServiceDefinition {
-    name: String,
-    kind: ServiceKind,
+    pub name: String,
+    pub kind: ServiceKind,
 }
 
 /// The kind of service.
 pub enum ServiceKind {
     Python { script: PathBuf },
-    Docker { dockerfile: PathBuf },
+    Docker { image: DockerImage },
 }
 
 /// An external service a test may depend on.

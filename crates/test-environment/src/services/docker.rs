@@ -19,17 +19,19 @@ pub struct DockerService {
 
 impl DockerService {
     /// Start a docker container as a service
-    pub fn start(name: &str, service_definitions_path: &Path) -> anyhow::Result<Self> {
+    pub fn start(name: &str, dockerfile_path: &Path) -> anyhow::Result<Self> {
+        let lock_path = dockerfile_path
+            .parent()
+            .context("Dockerfile path has no parent")?
+            .join(format!("{name}.lock"));
         // TODO: ensure that `docker` is installed and available
-        let docker_file_path = service_definitions_path.join(format!("{name}.Dockerfile"));
         let image_name = format!("test-environment/services/{name}");
         let mut lock =
-            fslock::LockFile::open(&service_definitions_path.join(format!("{name}.lock")))
-                .context("failed to open service file lock")?;
+            fslock::LockFile::open(&lock_path).context("failed to open service file lock")?;
         lock.lock().context("failed to obtain service file lock")?;
 
         stop_containers(&get_running_containers(&image_name)?)?;
-        build_image(&docker_file_path, &image_name)?;
+        build_image(dockerfile_path, &image_name)?;
         let container = run_container(&image_name)?;
 
         Ok(Self {
@@ -141,13 +143,13 @@ impl Service for DockerService {
     }
 }
 
-fn build_image(docker_file_path: &Path, image_name: &String) -> anyhow::Result<()> {
+fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()> {
     let temp_dir = temp_dir::TempDir::new()
         .context("failed to produce a temporary directory to run docker in")?;
     let output = Command::new("docker")
         .arg("build")
         .arg("-f")
-        .arg(docker_file_path)
+        .arg(dockerfile_path)
         .arg("-t")
         .arg(image_name)
         .arg(temp_dir.path())

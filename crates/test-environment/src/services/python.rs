@@ -19,23 +19,17 @@ pub struct PythonService {
 }
 
 impl PythonService {
-    pub fn start(
-        name: &str,
-        service_definitions_path: &Path,
-        working_dir: &Path,
-    ) -> anyhow::Result<Self> {
+    pub fn start(name: &str, script_path: &Path, working_dir: &Path) -> anyhow::Result<Self> {
+        let lock_path = script_path
+            .parent()
+            .context("Python script path has no parent")?
+            .join(format!("{name}.lock"));
         let mut lock =
-            fslock::LockFile::open(&service_definitions_path.join(format!("{name}.lock")))
-                .context("failed to open service file lock")?;
+            fslock::LockFile::open(&lock_path).context("failed to open service file lock")?;
         lock.lock().context("failed to obtain service file lock")?;
         let mut child = python()
             .current_dir(working_dir)
-            .arg(
-                service_definitions_path
-                    .join(format!("{name}.py"))
-                    .display()
-                    .to_string(),
-            )
+            .arg(script_path.display().to_string())
             .stdout(Stdio::piped())
             .spawn()
             .context("service failed to spawn")?;

@@ -25,7 +25,7 @@ impl<R: Runtime> TestEnvironment<R> {
         config: TestEnvironmentConfig<R>,
         init_env: impl FnOnce(&mut Self) -> anyhow::Result<()> + 'static,
     ) -> anyhow::Result<Self> {
-        let mut env = Self::boot(&config.services_config)?;
+        let mut env = Self::boot(config.services_config)?;
         init_env(&mut env)?;
         let runtime = (config.create_runtime)(&mut env)?;
         env.start_runtime(runtime)
@@ -47,7 +47,7 @@ impl<R> TestEnvironment<R> {
     /// Spin up a test environment without a runtime
     ///
     /// `services` specifies the services to run.
-    pub fn boot(services: &ServicesConfig) -> anyhow::Result<Self> {
+    pub fn boot(services: ServicesConfig) -> anyhow::Result<Self> {
         let temp = temp_dir::TempDir::new()
             .context("failed to produce a temporary directory to run the test in")?;
         let mut services =

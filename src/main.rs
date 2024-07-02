@@ -113,7 +113,7 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
             continue;
         }
         let test_path = test.path();
-        println!("Processing test {:?}...", test_path);
+        println!("Processing {test_path:?}...");
 
         let test_name = test_path
             .file_name()
@@ -180,7 +180,6 @@ fn substitute_source(
                     .with_context(|| format!("'{template_value}' is not a known component"))?;
                 let component_file = "component.wasm";
                 std::fs::copy(path, test_archive.join(component_file))?;
-                println!("Substituting {template} with {component_file}...");
                 manifest.replace_range(full.range(), component_file);
                 // Restart the search after a substitution
                 continue 'outer;

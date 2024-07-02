@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 
@@ -11,6 +11,8 @@ use anyhow::{bail, Context};
 use docker::DockerService;
 use python::PythonService;
 
+pub use docker::DockerImage;
+
 /// All the services that are running for a test.
 #[derive(Default)]
 pub struct Services {
@@ -19,25 +21,21 @@ pub struct Services {
 
 impl Services {
     /// Start all the required services given a path to service definitions
-    pub fn start(config: &ServicesConfig, working_dir: &Path) -> anyhow::Result<Self> {
+    pub fn start(config: ServicesConfig, working_dir: &Path) -> anyhow::Result<Self> {
+        let lock_dir = working_dir.join(".service-locks");
+        std::fs::create_dir(&lock_dir).context("could not create service lock dir")?;
         let mut services = Vec::new();
-        for required_service in &config.services {
-            let service_definition_extension =
-                config.definitions.get(required_service).map(|e| e.as_str());
-            let mut service: Box<dyn Service> = match service_definition_extension {
-                Some("py") => Box::new(PythonService::start(
-                    required_service,
-                    &config.definitions_path,
+        for service_def in config.service_definitions {
+            let mut service: Box<dyn Service> = match service_def.kind {
+                ServiceKind::Python { script } => Box::new(PythonService::start(
+                    &service_def.name,
+                    &script,
                     working_dir,
+                    &lock_dir,
                 )?),
-                Some("Dockerfile") => Box::new(DockerService::start(
-                    required_service,
-                    &config.definitions_path,
-                )?),
-                Some(extension) => {
-                    bail!("service definitions with the '{extension}' extension are not supported")
+                ServiceKind::Docker { image } => {
+                    Box::new(DockerService::start(&service_def.name, image, &lock_dir)?)
                 }
-                None => bail!("no service definition found for '{required_service}'"),
             };
             service.ready()?;
             services.push(service);
@@ -88,37 +86,46 @@ impl<'a> IntoIterator for &'a Services {
 }
 
 pub struct ServicesConfig {
-    services: Vec<String>,
-    definitions_path: PathBuf,
-    definitions: HashMap<String, String>,
+    /// Definitions of all services to be used.
+    service_definitions: Vec<ServiceDefinition>,
 }
 
 impl ServicesConfig {
-    /// Create a new services config a list of services to start.
+    /// Create a new services config with a list of built-in services to start.
     ///
-    /// The services are expected to have a definition file in the `services` directory with the same name as the service.
-    pub fn new(services: Vec<String>) -> anyhow::Result<Self> {
-        let definitions = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("services");
-        let service_definitions = service_definitions(&definitions)?;
+    /// The built-in services are expected to have a definition file in the `services` directory with the same name as the service.
+    pub fn new<'a>(builtins: impl Into<Vec<&'a str>>) -> anyhow::Result<Self> {
+        let definitions_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("services");
+        let service_definitions = get_builtin_service_definitions(
+            builtins.into().into_iter().collect(),
+            &definitions_path,
+        )?;
         Ok(Self {
-            services,
-            definitions_path: definitions,
-            definitions: service_definitions,
+            service_definitions,
         })
+    }
+
+    pub fn add_service(&mut self, service: ServiceDefinition) {
+        self.service_definitions.push(service);
     }
 
     /// Configure no services
     pub fn none() -> Self {
         Self {
-            services: Vec::new(),
-            definitions_path: PathBuf::new(),
-            definitions: HashMap::new(),
+            service_definitions: Vec::new(),
         }
     }
 }
 
 /// Get all of the service definitions returning a HashMap of the service name to the service definition file extension.
-fn service_definitions(service_definitions_path: &Path) -> anyhow::Result<HashMap<String, String>> {
+fn get_builtin_service_definitions(
+    mut builtins: HashSet<&str>,
+    service_definitions_path: &Path,
+) -> anyhow::Result<Vec<ServiceDefinition>> {
+    if builtins.is_empty() {
+        return Ok(Vec::new());
+    }
+
     std::fs::read_dir(service_definitions_path)
         .with_context(|| {
             format!(
@@ -139,8 +146,41 @@ fn service_definitions(service_definitions_path: &Path) -> anyhow::Result<HashMa
                 .context("service definition did not have an extension")?;
             Ok((file_name.to_owned(), file_extension.to_owned()))
         })
-        .filter(|r| !matches!( r , Ok((_, extension)) if extension == "lock"))
+        .filter(|r| !matches!(r, Ok((_, extension)) if extension == "lock"))
+        .filter(move |r| match r {
+            Ok((service, _)) => builtins.remove(service.as_str()),
+            _ => false,
+        })
+        .map(|r| {
+            let (name, extension) = r?;
+            Ok(ServiceDefinition {
+                name: name.clone(),
+                kind: match extension.as_str() {
+                    "py" => ServiceKind::Python {
+                        script: service_definitions_path.join(format!("{}.py", name)),
+                    },
+                    "Dockerfile" => ServiceKind::Docker {
+                        image: docker::DockerImage::FromDockerfile(
+                            service_definitions_path.join(format!("{}.Dockerfile", name)),
+                        ),
+                    },
+                    _ => bail!("unsupported service definition extension '{}'", extension),
+                },
+            })
+        })
         .collect()
+}
+
+/// A service definition.
+pub struct ServiceDefinition {
+    pub name: String,
+    pub kind: ServiceKind,
+}
+
+/// The kind of service.
+pub enum ServiceKind {
+    Python { script: PathBuf },
+    Docker { image: DockerImage },
 }
 
 /// An external service a test may depend on.

@@ -3,7 +3,7 @@ use anyhow::{bail, Context as _};
 use std::{
     cell::OnceCell,
     collections::HashMap,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -19,17 +19,22 @@ pub struct DockerService {
 
 impl DockerService {
     /// Start a docker container as a service
-    pub fn start(name: &str, service_definitions_path: &Path) -> anyhow::Result<Self> {
+    pub fn start(name: &str, image: DockerImage, lock_dir: &Path) -> anyhow::Result<Self> {
+        let lock_path = lock_dir.join(format!("{name}.lock"));
         // TODO: ensure that `docker` is installed and available
-        let docker_file_path = service_definitions_path.join(format!("{name}.Dockerfile"));
-        let image_name = format!("test-environment/services/{name}");
         let mut lock =
-            fslock::LockFile::open(&service_definitions_path.join(format!("{name}.lock")))
-                .context("failed to open service file lock")?;
+            fslock::LockFile::open(&lock_path).context("failed to open service file lock")?;
         lock.lock().context("failed to obtain service file lock")?;
 
+        let image_name = match image {
+            DockerImage::FromDockerfile(dockerfile_path) => {
+                let image_name = format!("test-environment/services/{name}");
+                build_image(&dockerfile_path, &image_name)?;
+                image_name
+            }
+            DockerImage::FromRegistry(image_name) => image_name,
+        };
         stop_containers(&get_running_containers(&image_name)?)?;
-        build_image(&docker_file_path, &image_name)?;
         let container = run_container(&image_name)?;
 
         Ok(Self {
@@ -76,6 +81,11 @@ impl Container {
             })
             .collect()
     }
+}
+
+pub enum DockerImage {
+    FromDockerfile(PathBuf),
+    FromRegistry(String),
 }
 
 impl Drop for Container {
@@ -141,13 +151,13 @@ impl Service for DockerService {
     }
 }
 
-fn build_image(docker_file_path: &Path, image_name: &String) -> anyhow::Result<()> {
+fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()> {
     let temp_dir = temp_dir::TempDir::new()
         .context("failed to produce a temporary directory to run docker in")?;
     let output = Command::new("docker")
         .arg("build")
         .arg("-f")
-        .arg(docker_file_path)
+        .arg(dockerfile_path)
         .arg("-t")
         .arg(image_name)
         .arg(temp_dir.path())

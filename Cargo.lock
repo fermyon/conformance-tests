@@ -842,6 +842,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "outbound-mqtt-test-component"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "helper",
+ "wit-bindgen",
+]
+
+[[package]]
 name = "outbound-redis-test-component"
 version = "0.1.0"
 dependencies = [

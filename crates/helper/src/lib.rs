@@ -65,7 +65,7 @@ pub fn handle_result(result: anyhow::Result<OutgoingResponse>, response_out: Res
 }
 
 /// Get the value of a header from a request.
-pub fn get_header(request: IncomingRequest, header_key: &String) -> Option<String> {
+pub fn get_header(request: &IncomingRequest, header_key: &String) -> Option<String> {
     request
         .headers()
         .get(header_key)

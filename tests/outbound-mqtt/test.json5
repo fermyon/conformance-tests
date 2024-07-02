@@ -1,0 +1,40 @@
+{
+    "invocations": [
+        {
+            "request": {
+                "path": "/",
+                "headers": [
+                    {
+                        "name": "Host",
+                        "value": "example.com"
+                    },
+                    {
+                        "name": "MQTT_ADDRESS",
+                        "value": "mqtt://localhost:%{port=1883}?client_id=spintest"
+                    },
+                    {
+                        "name": "MQTT_USERNAME",
+                        "value": "user"
+                    },
+                    {
+                        "name": "MQTT_PASSWORD",
+                        "value": "password"
+                    },
+                ]
+            },
+            "response": {
+                "headers": [
+                    {
+                        "name": "Content-Length",
+                        "value": "0"
+                    },
+                    {
+                        "name": "Date",
+                        "optional": true
+                    }
+                ]
+            }
+        }
+    ],
+    "preconditions": [ { "kind": "mqtt" } ]
+}

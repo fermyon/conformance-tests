@@ -18,7 +18,7 @@ impl bindings::Guest for Component {
 const REDIS_ADDRESS_HEADER: &str = "REDIS_ADDRESS";
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    let Some(address) = helper::get_header(request, &REDIS_ADDRESS_HEADER.to_owned()) else {
+    let Some(address) = helper::get_header(&request, &REDIS_ADDRESS_HEADER.to_owned()) else {
         // Otherwise, return a 400 Bad Request response.
         return Ok(helper::response(
             400,

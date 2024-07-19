@@ -164,7 +164,12 @@ fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output()
-        .context("service failed to spawn")?;
+        .with_context(|| {
+            format!(
+                "docker build failed to spawn for Dockerfile '{}'",
+                dockerfile_path.display()
+            )
+        })?;
 
     if !output.status.success() {
         let stderr = std::str::from_utf8(&output.stderr).unwrap_or("<non-utf8>");
@@ -196,7 +201,7 @@ fn run_container(image_name: &str) -> anyhow::Result<Container> {
         .arg("--health-start-period=1s")
         .arg(image_name)
         .output()
-        .context("service failed to spawn")?;
+        .with_context(|| format!("docker run failed to spawn for image '{image_name}'"))?;
     if !output.status.success() {
         bail!("failed to run docker image");
     }

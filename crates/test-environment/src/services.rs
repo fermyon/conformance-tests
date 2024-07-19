@@ -126,7 +126,7 @@ fn get_builtin_service_definitions(
         return Ok(Vec::new());
     }
 
-    std::fs::read_dir(service_definitions_path)
+    let result = std::fs::read_dir(service_definitions_path)
         .with_context(|| {
             format!(
                 "no service definitions found at '{}'",
@@ -147,7 +147,7 @@ fn get_builtin_service_definitions(
             Ok((file_name.to_owned(), file_extension.to_owned()))
         })
         .filter(|r| !matches!(r, Ok((_, extension)) if extension == "lock"))
-        .filter(move |r| match r {
+        .filter(|r| match r {
             Ok((service, _)) => builtins.remove(service.as_str()),
             _ => false,
         })
@@ -157,18 +157,22 @@ fn get_builtin_service_definitions(
                 name: name.clone(),
                 kind: match extension.as_str() {
                     "py" => ServiceKind::Python {
-                        script: service_definitions_path.join(format!("{}.py", name)),
+                        script: service_definitions_path.join(format!("{name}.py")),
                     },
                     "Dockerfile" => ServiceKind::Docker {
                         image: docker::DockerImage::FromDockerfile(
-                            service_definitions_path.join(format!("{}.Dockerfile", name)),
+                            service_definitions_path.join(format!("{name}.Dockerfile")),
                         ),
                     },
-                    _ => bail!("unsupported service definition extension '{}'", extension),
+                    _ => bail!("unsupported service definition extension '{extension}'"),
                 },
             })
         })
-        .collect()
+        .collect();
+    if !builtins.is_empty() {
+        bail!("no service definitions found for: {builtins:?}",);
+    }
+    result
 }
 
 /// A service definition.

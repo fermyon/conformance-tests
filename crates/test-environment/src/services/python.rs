@@ -34,7 +34,7 @@ impl PythonService {
             .arg(script_path.display().to_string())
             .stdout(Stdio::piped())
             .spawn()
-            .context("service failed to spawn")?;
+            .with_context(|| format!("python failed to spawn for '{}'", script_path.display()))?;
         std::thread::sleep(std::time::Duration::from_millis(1000));
         Ok(Self {
             stdout: OutputStream::new(

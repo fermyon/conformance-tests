@@ -9,7 +9,7 @@ use std::{
 
 /// A docker container as a service
 pub struct DockerService {
-    image_name: String,
+    name: String,
     container: Container,
     // We declare lock after container so that the lock is dropped after the container is
     _lock: fslock::LockFile,
@@ -19,7 +19,12 @@ pub struct DockerService {
 
 impl DockerService {
     /// Start a docker container as a service
-    pub fn start(name: &str, image: DockerImage, lock_dir: &Path) -> anyhow::Result<Self> {
+    pub fn start(
+        name: impl Into<String>,
+        image: DockerImage,
+        lock_dir: &Path,
+    ) -> anyhow::Result<Self> {
+        let name = name.into();
         let lock_path = lock_dir.join(format!("{name}.lock"));
         // TODO: ensure that `docker` is installed and available
         let mut lock =
@@ -34,11 +39,10 @@ impl DockerService {
             }
             DockerImage::FromRegistry(image_name) => image_name,
         };
-        stop_containers(&get_running_containers(&image_name)?)?;
-        let container = run_container(&image_name)?;
+        let container = run_container(image_name)?;
 
         Ok(Self {
-            image_name,
+            name,
             container,
             _lock: lock,
             ports: OnceCell::new(),
@@ -49,6 +53,7 @@ impl DockerService {
 
 struct Container {
     id: String,
+    image: String,
 }
 
 impl Container {
@@ -57,32 +62,51 @@ impl Container {
             .arg("port")
             .arg(&self.id)
             .output()
-            .context("docker failed to fetch ports")?;
+            .with_context(|| {
+                format!(
+                    "docker failed to run command to fetch ports for container for image '{}'",
+                    self.image,
+                )
+            })?;
         if !output.status.success() {
-            bail!("failed to run fetch ports for docker container");
+            let stdout = String::from_utf8(output.stdout).unwrap_or_else(|_| "<non-utf8>".into());
+            let stderr = String::from_utf8(output.stderr).unwrap_or_else(|_| "<non-utf8>".into());
+            bail!(
+                "failed to fetch ports for docker container for image {}:\n{stdout}\n{stderr}",
+                self.image
+            );
         }
         let output = String::from_utf8(output.stdout)?;
         output
             .lines()
             .map(|s| {
                 // 3306/tcp -> 0.0.0.0:32770
-                let s = s.trim();
-                let (guest, host) = s
-                    .split_once(" -> ")
-                    .context("failed to parse port mapping")?;
-                let (guest_port, _) = guest
-                    .split_once('/')
-                    .context("guest mapping does not contain '/'")?;
-                let host_port = host
-                    .rsplit(':')
-                    .next()
-                    .expect("`rsplit` should always return one element but somehow did not");
-                Ok((guest_port.parse()?, host_port.parse()?))
+                let parse = || -> anyhow::Result<(u16, u16)> {
+                    let s = s.trim();
+                    let (guest, host) = s
+                        .split_once(" -> ")
+                        .context("failed to parse port mapping")?;
+                    let (guest_port, _) = guest
+                        .split_once('/')
+                        .context("guest mapping does not contain '/'")?;
+                    let host_port = host
+                        .rsplit(':')
+                        .next()
+                        .expect("`rsplit` should always return one element but somehow did not");
+                    Ok((guest_port.parse()?, host_port.parse()?))
+                };
+                parse().with_context(|| {
+                    format!(
+                        "failed to parse port mapping for container for image '{}' from string '{s}'",
+                        self.image
+                    )
+                })
             })
             .collect()
     }
 }
 
+#[derive(Debug)]
 pub enum DockerImage {
     FromDockerfile(PathBuf),
     FromRegistry(String),
@@ -110,10 +134,18 @@ impl Service for DockerService {
                 .arg("{{with .State.Health}}{{.Status}}{{else}}healthy{{end}}")
                 .arg(&self.container.id)
                 .output()
-                .context("failed to determine container health")?;
+                .with_context(|| {
+                    format!(
+                        "failed to determine container health for '{}' service",
+                        self.name
+                    )
+                })?;
             if !output.status.success() {
                 let stderr = std::str::from_utf8(&output.stderr).unwrap_or("<non-utf8>");
-                bail!("docker health status check failed: {stderr}");
+                bail!(
+                    "docker health status check failed for service '{}': {stderr}",
+                    self.name
+                );
             }
             let output = String::from_utf8(output.stdout)?;
             match output.trim() {
@@ -131,12 +163,14 @@ impl Service for DockerService {
                         .as_ref()
                         .map(|o| String::from_utf8_lossy(&o.stdout))
                         .unwrap_or_else(|_| "<failed to get health check logs>".into());
-                    bail!("docker container is unhealthy:\n{logs}")
+                    bail!(
+                        "docker container for '{}' service is unhealthy:\n{logs}",
+                        self.name
+                    )
                 }
                 _ => std::thread::sleep(std::time::Duration::from_millis(100)),
             }
         }
-        anyhow::ensure!(!get_running_containers(&self.image_name)?.is_empty());
         Ok(())
     }
 
@@ -181,33 +215,25 @@ fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()
     Ok(())
 }
 
-fn get_running_containers(image_name: &str) -> anyhow::Result<Vec<String>> {
-    let output = Command::new("docker")
-        .arg("ps")
-        .arg("-q")
-        .arg("--filter")
-        .arg(format!("ancestor={image_name}"))
-        .output()
-        .context("failed to get running containers")?;
-    let output = String::from_utf8(output.stdout)?;
-    Ok(output.lines().map(|s| s.to_owned()).collect())
-}
-
-fn run_container(image_name: &str) -> anyhow::Result<Container> {
+fn run_container(image_name: String) -> anyhow::Result<Container> {
     let output = Command::new("docker")
         .arg("run")
         .arg("-d")
         .arg("-P")
         .arg("--health-start-period=1s")
-        .arg(image_name)
+        .arg(&image_name)
         .output()
         .with_context(|| format!("docker run failed to spawn for image '{image_name}'"))?;
     if !output.status.success() {
-        bail!("failed to run docker image");
+        let stderr = String::from_utf8(output.stderr)?;
+        bail!("failed to run docker image for image '{image_name}': {stderr}");
     }
     let output = String::from_utf8(output.stdout)?;
     let id = output.trim().to_owned();
-    Ok(Container { id })
+    Ok(Container {
+        id,
+        image: image_name,
+    })
 }
 
 fn stop_containers(ids: &[String]) -> anyhow::Result<()> {
@@ -216,7 +242,7 @@ fn stop_containers(ids: &[String]) -> anyhow::Result<()> {
             .arg("stop")
             .arg(id)
             .output()
-            .context("failed to stop container")?;
+            .with_context(|| format!("failed to stop container with id '{id}'"))?;
         let _ = Command::new("docker").arg("rm").arg(id).output();
     }
     Ok(())

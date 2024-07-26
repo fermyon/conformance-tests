@@ -36,8 +36,9 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
     let authority = req
         .authority()
         .context("incoming request has no authority")?;
-    // The authority is equal to the original request's HOST header
-    assert_eq!(authority, "example.com");
+    let _addr: std::net::SocketAddr = authority
+        .parse()
+        .context("authority is not a valid SocketAddr")?;
 
     let path_with_query = req.path_with_query();
     let expected = "/base/path/end/rest?key=value";

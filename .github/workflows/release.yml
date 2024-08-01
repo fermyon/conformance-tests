@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "tests-v*"
 
 env:
     CARGO_TERM_COLOR: always
-    RUST_VERSION: 1.78
+    RUST_VERSION: "1.80"
 
 jobs:
   build:
@@ -30,14 +32,27 @@ jobs:
       with:
         name: tests
         path: tests.tar.gz
+
+    - name: set the release version (tag)
+      if: startsWith(github.ref, 'refs/tags/tests-v')
+      shell: bash
+      run: |
+        echo "RELEASE_VERSION=$(echo ${{ github.ref_name }} | cut -c 7-)" >> $GITHUB_ENV
+        echo "RELEASE_NOTE='The ${{ env.RELEASE_VERSION }} release of the conformance tests.'" >> $GITHUB_ENV
+
+    - name: set the release version (main)
+      if: github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        echo "RELEASE_VERSION=canary" >> $GITHUB_ENV
+        echo "RELEASE_NOTE='This is a "canary" release of the most recent commits on our main branch. Canary is **not stable**.'" >> $GITHUB_ENV
     
     - name: Recreate canary release
       uses: ncipollo/release-action@v1.14.0
       with:
-        tag: canary
+        tag:  "${{ env.RELEASE_VERSION }}"
         allowUpdates: true
         prerelease: true
         artifacts: "tests.tar.gz"
         commit: ${{ github.sha }}
-        body: |
-          This is a "canary" release of the most recent commits on our main branch. Canary is **not stable**.
+        body: "${{ env.RELEASE_NOTE }}"

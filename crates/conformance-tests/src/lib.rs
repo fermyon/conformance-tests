@@ -4,10 +4,13 @@ use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
 /// Run the conformance tests
+///
+/// The version is either 'canary' or a release tag like 'v0.1.0'.
 pub fn run_tests(
+    version: &str,
     run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
 ) -> anyhow::Result<()> {
-    let tests_dir = download_tests()?;
+    let tests_dir = download_tests(version)?;
     run_tests_from(tests_dir, run)
 }
 
@@ -28,10 +31,10 @@ pub fn run_tests_from(
 }
 
 /// Download the conformance tests and return the path to the directory where they are written to
-pub fn download_tests() -> anyhow::Result<std::path::PathBuf> {
-    let response = reqwest::blocking::get(
-        "https://github.com/fermyon/conformance-tests/releases/download/canary/tests.tar.gz",
-    )
+pub fn download_tests(version: &str) -> anyhow::Result<std::path::PathBuf> {
+    let response = reqwest::blocking::get(format!(
+        "https://github.com/fermyon/conformance-tests/releases/download/{version}/tests.tar.gz"
+    ))
     .context("failed to send request")?
     .error_for_status()?;
     let response = flate2::read::GzDecoder::new(response);

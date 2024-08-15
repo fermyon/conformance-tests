@@ -47,10 +47,9 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
     );
 
     let scheme = req.scheme();
-    let expected = Scheme::Http;
     anyhow::ensure!(
-        matches!(scheme, Some(Scheme::Http)),
-        "Scheme was expected to be '{expected:?}' but was '{scheme:?}'"
+        matches!(scheme, Some(Scheme::Http | Scheme::Https)),
+        "Scheme was expected to be HTTP or HTTPS but was '{scheme:?}'"
     );
 
     Ok(())

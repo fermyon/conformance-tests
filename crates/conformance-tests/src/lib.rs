@@ -3,28 +3,57 @@ pub mod config;
 use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
+/// Configuration for how tests are run.
+pub struct Config {
+    version: String,
+    ignored: Vec<String>,
+}
+
+impl Config {
+    /// Create a new configuration
+    ///
+    /// The version is either 'canary' or a release tag like 'v0.1.0'.
+    pub fn new(version: impl Into<String>) -> Self {
+        Self {
+            version: version.into(),
+            ignored: Vec::new(),
+        }
+    }
+
+    /// Ignore a test by name
+    pub fn ignore(mut self, name: impl Into<String>) -> Self {
+        self.ignored.push(name.into());
+        self
+    }
+
+    /// Ignore multiple tests by name
+    pub fn ignore_many(mut self, names: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.ignored.extend(names.into_iter().map(Into::into));
+        self
+    }
+}
+
 /// Run the conformance tests
-///
-/// The version is either 'canary' or a release tag like 'v0.1.0'.
 pub fn run_tests(
-    version: &str,
+    config: Config,
     run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
 ) -> anyhow::Result<()> {
-    let tests_dir = download_tests(version)?;
-    run_tests_from(tests_dir, run)
+    let tests_dir = download_tests(&config.version)?;
+    run_tests_from(tests_dir, config, run)
 }
 
 /// Run the conformance tests located in the given directory
 pub fn run_tests_from(
     tests_dir: impl AsRef<Path>,
+    config: Config,
     run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
 ) -> anyhow::Result<()> {
     let trials = tests_iter(tests_dir)?
         .map(|test| {
             let run = run.clone();
-            libtest_mimic::Trial::test(test.name.clone(), move || {
-                Ok(run(test).map_err(FullError::from)?)
-            })
+            let name = test.name.clone();
+            libtest_mimic::Trial::test(&name, move || Ok(run(test).map_err(FullError::from)?))
+                .with_ignored_flag(config.ignored.contains(&name))
         })
         .collect();
     libtest_mimic::run(&Default::default(), trials).exit();

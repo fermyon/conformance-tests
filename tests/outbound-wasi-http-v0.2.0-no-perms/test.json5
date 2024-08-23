@@ -28,7 +28,7 @@
                         "optional": true
                     }
                 ],
-                "body": "ErrorCode::HttpRequestDenied"
+                "body": "incoming-response#get: ErrorCode::HttpRequestDenied"
             },
         }
     ],

@@ -5,11 +5,8 @@ name = "request-shape"
 version = "0.1.0"
 authors = ["Fermyon Engineering <engineering@fermyon.com>"]
 
-[application.trigger.http]
-base = "/base"
-
 [[trigger.http]]
-route = "/:path_segment/:path_end/..."
+route = "/base/:path_segment/:path_end/..."
 component = "request-shape"
 
 [component.request-shape]

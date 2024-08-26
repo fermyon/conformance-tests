@@ -58,14 +58,18 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
 /// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     let expected_headers = [
-        ("spin-raw-component-route", "/:path_segment/:path_end/..."),
+        (
+            "spin-raw-component-route",
+            "/base/:path_segment/:path_end/...",
+        ),
         (
             "spin-full-url",
             "http://example.com/base/path/end/rest?key=value",
         ),
         ("spin-path-info", "/rest"),
-        ("spin-base-path", "/base"),
-        ("spin-component-route", "/:path_segment/:path_end"),
+        // Hardcoded base path for backwards compatibility
+        ("spin-base-path", "/"),
+        ("spin-component-route", "/base/:path_segment/:path_end"),
         ("spin-path-match-path-segment", "path"),
         ("spin-path-match-path-end", "end"),
         ("spin-matched-route", "/base/:path_segment/:path_end/..."),

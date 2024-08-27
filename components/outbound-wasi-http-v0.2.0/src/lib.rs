@@ -51,14 +51,29 @@ impl bindings::Guest for Component {
         let response = match outgoing_handler::handle(outgoing_request, None) {
             Ok(r) => r,
             Err(e) => {
-                return_response(outparam, 500, e.to_string().as_bytes());
+                return_response(
+                    outparam,
+                    500,
+                    format!("outgoing-handler/handle: {e}").as_bytes(),
+                );
                 return;
             }
         };
 
         let response = loop {
             if let Some(response) = response.get() {
-                break response.unwrap().unwrap();
+                let response = response.unwrap();
+                match response {
+                    Ok(r) => break r,
+                    Err(e) => {
+                        return_response(
+                            outparam,
+                            500,
+                            format!("incoming-response#get: {e}").as_bytes(),
+                        );
+                        return;
+                    }
+                };
             } else {
                 response.subscribe().block()
             }

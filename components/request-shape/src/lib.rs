@@ -86,13 +86,10 @@ fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
     for (name, values) in expected_headers.into_iter() {
         let header = header_as_string(&mut actual_headers, name)?;
 
-        for (i, value) in values.iter().enumerate() {
-            if header != *value && i == values.len() - 1 {
-                anyhow::bail!(
-                    "Header {name} was expected to contain value '{value}' but contained '{header}' "
-                );
-            }
-        }
+        anyhow::ensure!(
+            values.contains(&header.as_str()),
+            "Header {name} value was expected to be one of {values:?} but was '{header}'",
+        );
     }
 
     // Check that if spin-client-addr header is present, it's a valid SocketAddr

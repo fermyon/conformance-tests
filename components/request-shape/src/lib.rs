@@ -57,22 +57,25 @@ fn check_url(req: &IncomingRequest) -> anyhow::Result<()> {
 
 /// Check that the headers are as expected
 fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
-    let expected_headers = [
+    let expected_headers: [(&str, &[&str]); 8] = [
         (
             "spin-raw-component-route",
-            "/base/:path_segment/:path_end/...",
+            &["/base/:path_segment/:path_end/..."],
         ),
         (
             "spin-full-url",
-            "http://example.com/base/path/end/rest?key=value",
+            &[
+                "http://example.com/base/path/end/rest?key=value",
+                "https://example.com/base/path/end/rest?key=value",
+            ],
         ),
-        ("spin-path-info", "/rest"),
+        ("spin-path-info", &["/rest"]),
         // Hardcoded base path for backwards compatibility
-        ("spin-base-path", "/"),
-        ("spin-component-route", "/base/:path_segment/:path_end"),
-        ("spin-path-match-path-segment", "path"),
-        ("spin-path-match-path-end", "end"),
-        ("spin-matched-route", "/base/:path_segment/:path_end/..."),
+        ("spin-base-path", &["/"]),
+        ("spin-component-route", &["/base/:path_segment/:path_end"]),
+        ("spin-path-match-path-segment", &["path"]),
+        ("spin-path-match-path-end", &["end"]),
+        ("spin-matched-route", &["/base/:path_segment/:path_end/..."]),
     ];
 
     let mut actual_headers: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
@@ -80,19 +83,23 @@ fn check_headers(req: &IncomingRequest) -> anyhow::Result<()> {
         actual_headers.entry(k).or_default().push(v);
     }
 
-    for (name, value) in expected_headers.into_iter() {
+    for (name, values) in expected_headers.into_iter() {
         let header = header_as_string(&mut actual_headers, name)?;
 
         anyhow::ensure!(
-            header == value,
-            "Header {name} was expected to contain value '{value}' but contained '{header}' "
+            values.contains(&header.as_str()),
+            "Header {name} value was expected to be one of {values:?} but was '{header}'",
         );
     }
 
-    // Check that the spin-client-addr header is a valid SocketAddr
-    let _: std::net::SocketAddr = header_as_string(&mut actual_headers, "spin-client-addr")?
-        .parse()
-        .context("spin-client-addr header is not a valid SocketAddr")?;
+    // Check that if spin-client-addr header is present, it's a valid SocketAddr
+    let _: Option<std::net::SocketAddr> =
+        optional_header_as_string(&mut actual_headers, "spin-client-addr")?
+            .map(|addr| {
+                addr.parse()
+                    .context("spin-client-addr header is not a valid SocketAddr")
+            })
+            .transpose()?;
 
     // Check that there are no unexpected `spin-*` headers
     for (name, _) in actual_headers {
@@ -110,15 +117,29 @@ fn header_as_string(
     headers: &mut HashMap<String, Vec<Vec<u8>>>,
     name: &str,
 ) -> anyhow::Result<String> {
+    optional_header_as_string(headers, name)?
+        .with_context(|| format!("expected exactly one header '{name}' but found none"))
+}
+
+/// Fails unless there is either zero or one header with the given name, and if present it is valid UTF-8
+fn optional_header_as_string(
+    headers: &mut HashMap<String, Vec<Vec<u8>>>,
+    name: &str,
+) -> anyhow::Result<Option<String>> {
     //TODO: handle the fact that headers are case sensitive
     let mut value = headers.remove(name).unwrap_or_default();
 
-    if value.len() != 1 {
+    if value.len() > 1 {
         anyhow::bail!(
-            "expected exactly one header '{name}' but found {}",
+            "expected at most one header '{name}' but found {}",
             value.len()
         )
     }
+    if value.is_empty() {
+        return Ok(None);
+    }
+
     String::from_utf8(value.remove(0))
         .with_context(|| format!("header '{name}' is not valid UTF-8"))
+        .map(Some)
 }

@@ -33,21 +33,21 @@ impl Config {
     }
 }
 
-/// Run the conformance tests
+/// Run the conformance tests and return the results.
 pub fn run_tests(
     config: Config,
     run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<libtest_mimic::Conclusion> {
     let tests_dir = download_tests(&config.version)?;
     run_tests_from(tests_dir, config, run)
 }
 
-/// Run the conformance tests located in the given directory
+/// Run the conformance tests located in the given directory and returns the Conclusion
 pub fn run_tests_from(
     tests_dir: impl AsRef<Path>,
     config: Config,
     run: impl Fn(Test) -> anyhow::Result<()> + Send + Clone + 'static,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<libtest_mimic::Conclusion> {
     let trials = tests_iter(tests_dir)?
         .map(|test| {
             let run = run.clone();
@@ -56,7 +56,7 @@ pub fn run_tests_from(
                 .with_ignored_flag(config.ignored.contains(&name))
         })
         .collect();
-    libtest_mimic::run(&Default::default(), trials).exit();
+    Ok(libtest_mimic::run(&Default::default(), trials))
 }
 
 /// Download the conformance tests and return the path to the directory where they are written to

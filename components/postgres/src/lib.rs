@@ -1,6 +1,10 @@
-use anyhow::{Context as _, ensure};
+#![allow(clippy::result_large_err)] // Clippy thinks the PgError type makes Results too big
+
+use anyhow::{ensure, Context as _};
 use helper::bindings::{
-    spin::postgres4_0_0::postgres::{Connection, DbValue, Error as PgError, ParameterValue, RowSet},
+    spin::postgres4_0_0::postgres::{
+        Connection, DbValue, Error as PgError, ParameterValue, RowSet,
+    },
     wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
 };
 
@@ -30,22 +34,42 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
 
     let rowset = date_time_types(&conn)?;
     ensure!(rowset.rows.iter().all(|r| r.len() == 4));
-    ensure!(matches!(rowset.rows[0][1], DbValue::Date((y, m, d)) if y == 2525 && m == 12 && d == 25));
-    ensure!(matches!(rowset.rows[0][2], DbValue::Time((h, m, s, ns)) if h == 4 && m == 5 && s == 6 && ns == 789_000_000));
-    ensure!(matches!(rowset.rows[0][3], DbValue::Datetime((y, _, _, h, _, _, ns)) if y == 1989 && h == 1 && ns == 0));
-    ensure!(matches!(rowset.rows[1][1], DbValue::Date((y, m, d)) if y == 2525 && m == 12 && d == 25));
-    ensure!(matches!(rowset.rows[1][2], DbValue::Time((h, m, s, ns)) if h == 14 && m == 15 && s == 16 && ns == 17));
-    ensure!(matches!(rowset.rows[1][3], DbValue::Datetime((y, _, _, h, _, _, ns)) if y == 1989 && h == 1 && ns == 4));
+    ensure!(
+        matches!(rowset.rows[0][1], DbValue::Date((y, m, d)) if y == 2525 && m == 12 && d == 25)
+    );
+    ensure!(
+        matches!(rowset.rows[0][2], DbValue::Time((h, m, s, ns)) if h == 4 && m == 5 && s == 6 && ns == 789_000_000)
+    );
+    ensure!(
+        matches!(rowset.rows[0][3], DbValue::Datetime((y, _, _, h, _, _, ns)) if y == 1989 && h == 1 && ns == 0)
+    );
+    ensure!(
+        matches!(rowset.rows[1][1], DbValue::Date((y, m, d)) if y == 2525 && m == 12 && d == 25)
+    );
+    ensure!(
+        matches!(rowset.rows[1][2], DbValue::Time((h, m, s, ns)) if h == 14 && m == 15 && s == 16 && ns == 17)
+    );
+    ensure!(
+        matches!(rowset.rows[1][3], DbValue::Datetime((y, _, _, h, _, _, ns)) if y == 1989 && h == 1 && ns == 4)
+    );
 
     let rowset = json_types(&conn)?;
     ensure!(rowset.rows.iter().all(|r| r.len() == 2));
-    ensure!(matches!(&rowset.rows[0][1], DbValue::Jsonb(v) if String::from_utf8_lossy(v) == r#"{"s":"hello","n":123,"b":true,"x":null}"#));
-    ensure!(matches!(&rowset.rows[1][1], DbValue::Jsonb(v) if String::from_utf8_lossy(v) == r#"{"s":"world","n":234,"b":false,"x":null}"#));
+    ensure!(
+        matches!(&rowset.rows[0][1], DbValue::Jsonb(v) if String::from_utf8_lossy(v) == r#"{"s":"hello","n":123,"b":true,"x":null}"#)
+    );
+    ensure!(
+        matches!(&rowset.rows[1][1], DbValue::Jsonb(v) if String::from_utf8_lossy(v) == r#"{"s":"world","n":234,"b":false,"x":null}"#)
+    );
 
     let rowset = uuid_type(&conn)?;
     ensure!(rowset.rows.iter().all(|r| r.len() == 2));
-    ensure!(matches!(&rowset.rows[0][1], DbValue::Uuid(v) if v == "12345678-1234-1234-1234-123456789abc"));
-    ensure!(matches!(&rowset.rows[1][1], DbValue::Uuid(v) if v == "fedcba98-fedc-fedc-fedc-fedcba987654"));
+    ensure!(
+        matches!(&rowset.rows[0][1], DbValue::Uuid(v) if v == "12345678-1234-1234-1234-123456789abc")
+    );
+    ensure!(
+        matches!(&rowset.rows[1][1], DbValue::Uuid(v) if v == "fedcba98-fedc-fedc-fedc-fedcba987654")
+    );
 
     let rowset = nullable(&conn)?;
     ensure!(rowset.rows.iter().all(|r| r.len() == 1));
@@ -220,7 +244,11 @@ fn json_types(conn: &Connection) -> Result<RowSet, PgError> {
             (2, $1);
         "#;
 
-    let jsonb_pv = ParameterValue::Jsonb(r#"{ "s": "world", "n": 234, "b": false, "x": null }"#.as_bytes().to_vec());
+    let jsonb_pv = ParameterValue::Jsonb(
+        r#"{ "s": "world", "n": 234, "b": false, "x": null }"#
+            .as_bytes()
+            .to_vec(),
+    );
     conn.execute(insert_sql_spin_parameters, &[jsonb_pv])?;
 
     let sql = r#"

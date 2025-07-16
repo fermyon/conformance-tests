@@ -10,7 +10,7 @@
                     },
                     {
                         "name": "PG_CONNECTION_STRING",
-                        "value": "host=localhost port=%{port=5432} user=postgres password=my_password dbname=mydb"
+                        "value": "host=localhost port=%{port=5432} user=postgres password=postgres dbname=spin_dev"
                     },
                 ]
             },

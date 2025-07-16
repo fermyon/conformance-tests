@@ -9,4 +9,5 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = { workspace = true }
 helper = { workspace = true }
+rust_decimal = "1.37"
 wit-bindgen = { workspace = true }

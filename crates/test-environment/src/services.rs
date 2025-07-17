@@ -37,6 +37,13 @@ impl Services {
                     Box::new(DockerService::start(&service_def.name, image, &lock_dir)?)
                 }
             };
+            // TODO: Postgres seems to show Ready before the DB is actually ready to accept connections.
+            // THIS IS A BAD KLUDGE TO DEBUG THE TESTS AND AND WE SHOULD REPLACE IT WITH A GOOD OR AT LEAST ACCEPTABLE KLUDGE
+            if service_def.name == "postgres" {
+                println!("******* pausing for pg readiness");
+                std::thread::sleep(std::time::Duration::from_secs(8));
+                println!("******* paused for pg readiness");
+            }
             service.ready()?;
             services.push(service);
         }

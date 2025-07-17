@@ -1077,6 +1077,7 @@ dependencies = [
  "anyhow",
  "helper",
  "rust_decimal",
+ "serde_json",
  "wit-bindgen",
 ]
 

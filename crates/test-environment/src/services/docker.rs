@@ -186,15 +186,14 @@ impl Service for DockerService {
 }
 
 fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()> {
-    let temp_dir = temp_dir::TempDir::new()
-        .context("failed to produce a temporary directory to run docker in")?;
+    let docker_context_dir = dockerfile_path.parent().unwrap();
     let output = Command::new("docker")
         .arg("build")
         .arg("-f")
         .arg(dockerfile_path)
         .arg("-t")
         .arg(image_name)
-        .arg(temp_dir.path())
+        .arg(docker_context_dir)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output()

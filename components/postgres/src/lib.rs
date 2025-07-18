@@ -27,6 +27,8 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     test_json_types(&conn)?;
     test_uuid_type(&conn)?;
     test_nullable(&conn)?;
+    test_range_types(&conn)?;
+    test_array_types(&conn)?;
     test_call_pg_fn(&conn)?;
 
     Ok(helper::ok_response())
@@ -345,6 +347,157 @@ fn test_nullable(conn: &Connection) -> anyhow::Result<()> {
 
     ensure!(matches!(rowset.rows[0][1], DbValue::DbNull));
     ensure!(matches!(rowset.rows[1][1], DbValue::DbNull));
+
+    Ok(())
+}
+
+fn test_range_types(conn: &Connection) -> anyhow::Result<()> {
+    use helper::bindings::spin::postgres4_0_0::postgres::RangeBoundKind;
+
+    let sql = r#"
+        INSERT INTO test_range_types
+            (id, r4, r8, rnum)
+        VALUES
+            (2, $1, $2, $3);
+        "#;
+
+    let r4_lbound = (30, RangeBoundKind::Exclusive);
+    let r4_ubound = (12341234, RangeBoundKind::Exclusive);
+    let r4_pv = ParameterValue::RangeInt32((Some(r4_lbound), Some(r4_ubound)));
+
+    let r8_lbound = (123123123123, RangeBoundKind::Inclusive);
+    let r8_pv = ParameterValue::RangeInt64((Some(r8_lbound), None));
+
+    let rnum_lbound = ("1234.56".to_owned(), RangeBoundKind::Exclusive);
+    let rnum_ubound = ("456789012345.789123".to_owned(), RangeBoundKind::Inclusive);
+    let rnum_pv = ParameterValue::RangeDecimal((Some(rnum_lbound), Some(rnum_ubound)));
+
+    conn.execute(sql, &[r4_pv, r8_pv, rnum_pv])?;
+
+    let sql = r#"
+        SELECT id, r4, r8, rnum
+        FROM test_range_types
+        ORDER BY id;
+    "#;
+
+    let rowset = conn.query(sql, &[])?;
+
+    ensure!(rowset.rows.len() == 2);
+    ensure!(rowset.rows.iter().all(|r| r.len() == 4));
+
+    // Postgres normalises discrete ranges to inclusive lower/exclusive upper (https://www.postgresql.org/docs/current/rangetypes.html#RANGETYPES-DISCRETE)
+    ensure!(matches!(&rowset.rows[0][1],
+        DbValue::RangeInt32(r) if *r == (Some((2, RangeBoundKind::Inclusive)), Some((41, RangeBoundKind::Exclusive)))
+    ));
+    ensure!(matches!(&rowset.rows[0][2],
+        DbValue::RangeInt64(r) if *r == (Some((123456789012, RangeBoundKind::Inclusive)), Some((234567890123, RangeBoundKind::Exclusive)))
+    ));
+    ensure!(matches!(&rowset.rows[0][3],
+        DbValue::RangeDecimal(r) if r.clone() == (None, Some(("100".to_owned(), RangeBoundKind::Exclusive)))
+    ));
+
+    // Normalisation means we can't do direct equality comparison
+    ensure!(matches!(&rowset.rows[1][1],
+        DbValue::RangeInt32(r) if *r == (Some((31, RangeBoundKind::Inclusive)), Some((12341234, RangeBoundKind::Exclusive)))
+    ));
+    ensure!(matches!(&rowset.rows[1][2],
+        DbValue::RangeInt64(r) if *r == (Some((123123123123, RangeBoundKind::Inclusive)), None)
+    ));
+    // Continuous ranges like decimal are not normalised
+    ensure!(matches!(&rowset.rows[1][3],
+        DbValue::RangeDecimal(r) if r.clone() == (Some(("1234.56".to_owned(), RangeBoundKind::Exclusive)), Some(("456789012345.789123".to_owned(), RangeBoundKind::Inclusive)))
+    ));
+
+    // Test the use of the ranges in queries
+
+    // ::int4 is needed a workaround for https://github.com/sfackler/rust-postgres/issues/1258
+    let sql = "SELECT id FROM test_range_types WHERE $1::int4 <@ r4 ORDER BY id";
+
+    let rowset = conn.query(sql, &[ParameterValue::Int32(30)])?;
+    ensure!(rowset.rows.len() == 1);
+    ensure!(matches!(rowset.rows[0][0], DbValue::Int32(1)));
+
+    let rowset = conn.query(sql, &[ParameterValue::Int32(40)])?;
+    ensure!(rowset.rows.len() == 2);
+    ensure!(matches!(rowset.rows[0][0], DbValue::Int32(1)));
+    ensure!(matches!(rowset.rows[1][0], DbValue::Int32(2)));
+
+    Ok(())
+}
+
+fn test_array_types(conn: &Connection) -> anyhow::Result<()> {
+    let sql = r#"
+        INSERT INTO test_array_types
+            (id, i4arr, i8arr, numarr, strarr)
+        VALUES
+            (2, $1, $2, $3, $4);
+        "#;
+
+    let i4_arr = vec![Some(1), Some(123), None, Some(384753)];
+    let i4arr_pv = ParameterValue::ArrayInt32(i4_arr.clone());
+
+    let i8_arr: Vec<_> = (40_000_000_000_000i64..40_000_000_001_000)
+        .map(Some)
+        .collect();
+    let i8arr_pv = ParameterValue::ArrayInt64(i8_arr.clone());
+
+    let num_arr: Vec<_> = ["100", "200.123456789"]
+        .into_iter()
+        .map(|s| Some(s.to_owned()))
+        .collect();
+    let numarr_pv = ParameterValue::ArrayDecimal(num_arr.clone());
+
+    let str_arr: Vec<_> = [Some("alice"), None, Some("carol")]
+        .into_iter()
+        .map(|opt| opt.map(|s| s.to_owned()))
+        .collect();
+    let strarr_pv = ParameterValue::ArrayStr(str_arr.clone());
+
+    conn.execute(sql, &[i4arr_pv, i8arr_pv, numarr_pv, strarr_pv])?;
+
+    let sql = r#"
+        SELECT id, i4arr, i8arr, numarr, strarr
+        FROM test_array_types
+        ORDER BY id;
+    "#;
+
+    let rowset = conn.query(sql, &[])?;
+
+    ensure!(rowset.rows.len() == 2);
+    ensure!(rowset.rows.iter().all(|r| r.len() == 5));
+
+    fn vec_some<T, const N: usize>(vals: [T; N]) -> Vec<Option<T>> {
+        vals.into_iter().map(Some).collect()
+    }
+
+    ensure!(matches!(&rowset.rows[0][1], DbValue::ArrayInt32(v) if v == &vec_some([1, 2, 3])));
+    ensure!(
+        matches!(&rowset.rows[0][2], DbValue::ArrayInt64(v) if v == &vec_some([101, 102, 103, 104]))
+    );
+    ensure!(
+        matches!(&rowset.rows[0][3], DbValue::ArrayDecimal(v) if v == &vec_some(["1.234".to_owned(), "2.345".to_owned()]))
+    );
+    ensure!(
+        matches!(&rowset.rows[0][4], DbValue::ArrayStr(v) if v == &vec_some(["hello".to_owned(), "mum".to_owned()]))
+    );
+
+    ensure!(matches!(&rowset.rows[1][1], DbValue::ArrayInt32(v) if v == &i4_arr));
+    ensure!(matches!(&rowset.rows[1][2], DbValue::ArrayInt64(v) if v == &i8_arr));
+    ensure!(matches!(&rowset.rows[1][3], DbValue::ArrayDecimal(v) if v == &num_arr));
+    ensure!(matches!(&rowset.rows[1][4], DbValue::ArrayStr(v) if v == &str_arr));
+
+    let sql = r#"
+        SELECT id
+        FROM test_array_types
+        WHERE array_position(i4arr, $1) IS NOT NULL
+        ORDER BY id;
+    "#;
+
+    let rowset = conn.query(sql, &[ParameterValue::Int32(1)])?;
+    ensure!(rowset.rows.len() == 2);
+
+    let rowset = conn.query(sql, &[ParameterValue::Int32(2)])?;
+    ensure!(rowset.rows.len() == 1);
 
     Ok(())
 }

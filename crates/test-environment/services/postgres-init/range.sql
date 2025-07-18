@@ -8,4 +8,4 @@ CREATE TABLE test_range_types (
 INSERT INTO test_range_types
     (id, r4, r8, rnum)
 VALUES
-    (1, '[1, 5)', '(123456789012, 234567890123]', numrange(NULL, 100));
+    (1, '(1, 40]', '[123456789012, 234567890123)', numrange(NULL, 100));

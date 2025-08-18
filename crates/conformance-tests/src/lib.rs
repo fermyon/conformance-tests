@@ -119,7 +119,7 @@ pub fn tests_iter(tests_dir: impl AsRef<Path>) -> anyhow::Result<impl Iterator<I
                 .context("could not determine test name"))
             .to_owned();
             let config = r#try!(std::fs::read_to_string(test_dir.join("test.json5"))
-                .context(format!("failed to read test config from {test_dir:?}")));
+                .with_context(|| format!("failed to read test config from {test_dir:?}")));
             let config = r#try!(json5::from_str::<config::TestConfig>(&config)
                 .context("test config could not be parsed"));
 

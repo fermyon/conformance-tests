@@ -186,7 +186,9 @@ impl Service for DockerService {
 }
 
 fn build_image(dockerfile_path: &Path, image_name: &String) -> anyhow::Result<()> {
-    let docker_context_dir = dockerfile_path.parent().unwrap();
+    let docker_context_dir = dockerfile_path
+        .parent()
+        .expect("dockerfile had no parent dir");
     let output = Command::new("docker")
         .arg("build")
         .arg("-f")

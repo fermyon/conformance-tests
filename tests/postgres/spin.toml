@@ -1,0 +1,15 @@
+spin_manifest_version = 2
+
+[application]
+name = "postgres"
+authors = ["Fermyon Engineering <engineering@fermyon.com>"]
+version = "0.1.0"
+
+[[trigger.http]]
+route = "/"
+component = "test"
+
+[component.test]
+source = "%{source=postgres}"
+allowed_outbound_hosts = ["*://localhost:%{port=5432}"]
+environment = { PG_CONNECTION_STRING = "host=localhost port=%{port=5432} user=postgres password=postgres dbname=spin_dev" }

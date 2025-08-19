@@ -1,3 +1,5 @@
+package spin:sqlite@3.0.0;
+
 interface sqlite {
   /// A handle to an open sqlite instance
   resource connection {
@@ -10,6 +12,14 @@ interface sqlite {
 
     /// Execute a statement returning back data if there is any
     execute: func(statement: string, parameters: list<value>) -> result<query-result, error>;
+
+    /// The SQLite rowid of the most recent successful INSERT on the connection, or 0 if
+    /// there has not yet been an INSERT on the connection.
+    last-insert-rowid: func() -> s64;
+
+    /// The number of rows modified, inserted or deleted by the most recently completed
+    /// INSERT, UPDATE or DELETE statement on the connection.
+    changes: func() -> u64;
   }
 
   /// The set of errors which may be raised by functions in this interface
@@ -42,7 +52,7 @@ interface sqlite {
   /// A single column's result from a database query
   variant value {
     integer(s64),
-    real(float64),
+    real(f64),
     text(string),
     blob(list<u8>),
     null

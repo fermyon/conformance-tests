@@ -176,8 +176,10 @@ pub enum Precondition {
     Sqlite,
     /// The test expects a Redis service to be available.
     Redis,
-    /// The test expects a Redis service to be available.
+    /// The test expects a MQTT service to be available.
     Mqtt,
+    /// The test expects a PostgreSQL service to be available.
+    Postgres,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

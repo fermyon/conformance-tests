@@ -13,6 +13,11 @@ class EchoHandler(SimpleHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
 
+    def do_GET(self):
+        count = int(self.headers['how-many-bytes'] or "0")
+        self._set_headers()
+        self.wfile.write(bytes(count))
+
     def do_POST(self):
         content_length = int(self.headers['Content-Length'] or "0")
         body = self.rfile.read(content_length)

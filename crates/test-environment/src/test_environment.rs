@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::Path};
 
 use crate::{
-    services::{Services, ServicesConfig},
     Runtime,
+    services::{Services, ServicesConfig},
 };
 use anyhow::Context as _;
 

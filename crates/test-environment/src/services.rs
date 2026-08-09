@@ -6,7 +6,7 @@ use std::{
 mod docker;
 mod python;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 
 use docker::DockerService;
 use python::PythonService;

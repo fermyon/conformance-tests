@@ -1,4 +1,4 @@
-use anyhow::{ensure, Context as _};
+use anyhow::{Context as _, ensure};
 use helper::bindings::{
     spin::postgres4_0_0::postgres::{Connection, DbValue, Error as PgError, ParameterValue},
     wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},

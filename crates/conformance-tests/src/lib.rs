@@ -68,10 +68,12 @@ pub fn download_tests(version: &str) -> anyhow::Result<std::path::PathBuf> {
     .error_for_status()?;
     let response = flate2::read::GzDecoder::new(response);
     let dir = std::env::temp_dir().join("conformance-tests");
-    if dir.exists() {
-        if let Some(err) = std::fs::remove_dir_all(&dir).err() {
-            eprintln!("WARNING: download dir {dir:?} already existed and could not be removed. It may contain unexpected test content. {err:?}");
-        }
+    if dir.exists()
+        && let Some(err) = std::fs::remove_dir_all(&dir).err()
+    {
+        eprintln!(
+            "WARNING: download dir {dir:?} already existed and could not be removed. It may contain unexpected test content. {err:?}"
+        );
     }
     for entry in tar::Archive::new(response)
         .entries()
@@ -113,15 +115,21 @@ pub fn tests_iter(tests_dir: impl AsRef<Path>) -> anyhow::Result<impl Iterator<I
                 return None;
             }
             let test_dir = e.path();
-            let name = r#try!(test_dir
-                .file_name()
-                .and_then(|f| f.to_str())
-                .context("could not determine test name"))
+            let name = r#try!(
+                test_dir
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .context("could not determine test name")
+            )
             .to_owned();
-            let config = r#try!(std::fs::read_to_string(test_dir.join("test.json5"))
-                .with_context(|| format!("failed to read test config from {test_dir:?}")));
-            let config = r#try!(json5::from_str::<config::TestConfig>(&config)
-                .context("test config could not be parsed"));
+            let config = r#try!(
+                std::fs::read_to_string(test_dir.join("test.json5"))
+                    .with_context(|| format!("failed to read test config from {test_dir:?}"))
+            );
+            let config = r#try!(
+                json5::from_str::<config::TestConfig>(&config)
+                    .context("test config could not be parsed")
+            );
 
             let component_name = "component.wasm";
             Some(Ok(Test {

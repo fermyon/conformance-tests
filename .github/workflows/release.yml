@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Install Rust toolchain
       shell: bash
       run: |
@@ -28,7 +28,7 @@ jobs:
     - name: Create archive
       run: cargo run -- archive
     - name: Upload release artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: tests
         path: tests.tar.gz

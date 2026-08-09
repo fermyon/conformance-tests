@@ -18,7 +18,7 @@ impl bindings::Guest for Component {
 const REDIS_ADDRESS_HEADER: &str = "REDIS_ADDRESS";
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    let Some(address) = helper::get_header(&request, &REDIS_ADDRESS_HEADER.to_owned()) else {
+    let Some(address) = helper::get_header(&request, REDIS_ADDRESS_HEADER) else {
         // Otherwise, return a 400 Bad Request response.
         return Ok(helper::response(
             400,
@@ -27,7 +27,7 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
     };
     let connection = redis::Connection::open(&address)?;
 
-    connection.set("spin-example-get-set", &b"Eureka!".to_vec())?;
+    connection.set("spin-example-get-set", b"Eureka!".as_ref())?;
 
     let payload = connection
         .get("spin-example-get-set")?
@@ -35,7 +35,7 @@ fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
 
     anyhow::ensure!(String::from_utf8_lossy(&payload) == "Eureka!");
 
-    connection.set("spin-example-incr", &b"0".to_vec())?;
+    connection.set("spin-example-incr", b"0".as_ref())?;
 
     let int_value = connection.incr("spin-example-incr")?;
 

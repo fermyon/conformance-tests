@@ -5,6 +5,7 @@ pub mod bindings {
     wit_bindgen::generate!({
         world: "platform",
         path:  "../../wit",
+        generate_all,
     });
 }
 
@@ -16,6 +17,7 @@ macro_rules! gen_http_trigger_bindings {
             wit_bindgen::generate!({
                  world: "http-trigger",
                  path:  "../../wit",
+                 generate_all,
                  with: {
                      "wasi:http/types@0.2.0": helper::bindings::wasi::http0_2_0::types,
                      "wasi:http/outgoing-handler@0.2.0": helper::bindings::wasi::http0_2_0::outgoing_handler,
@@ -65,7 +67,7 @@ pub fn handle_result(result: anyhow::Result<OutgoingResponse>, response_out: Res
 }
 
 /// Get the value of a header from a request.
-pub fn get_header(request: &IncomingRequest, header_key: &String) -> Option<String> {
+pub fn get_header(request: &IncomingRequest, header_key: &str) -> Option<String> {
     request
         .headers()
         .get(header_key)

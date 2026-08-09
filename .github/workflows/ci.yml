@@ -14,7 +14,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_VERSION: "1.80"
+  RUST_VERSION: "1.96"
 jobs:
   lint-rust:
     name: Lint Rust
@@ -25,7 +25,7 @@ jobs:
           rustup toolchain install ${{ env.RUST_VERSION }} --component clippy --component rustfmt
           rustup default ${{ env.RUST_VERSION }}
       - name: Install Wasm Rust target
-        run: rustup target add wasm32-wasi && rustup target add wasm32-unknown-unknown
+        run: rustup target add wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "${{ runner.os }}-full-${{ hashFiles('./Cargo.lock') }}"

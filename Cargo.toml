@@ -6,10 +6,10 @@ edition = "2024"
 [dependencies]
 anyhow = { workspace = true }
 conformance-tests = { path = "crates/conformance-tests" }
-flate2 = "1.0"
-regex = "1.10"
+flate2 = { workspace = true }
+regex = { workspace = true }
 tempfile = "3.3"
-tar = "0.4"
+tar = { workspace = true }
 
 [workspace]
 members = ["components/*", "crates/*"]
@@ -17,5 +17,9 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
+flate2 = "1.0"
 helper = { path = "crates/helper" }
+regex = "1.10"
+reqwest = "0.12"
+tar = "0.4.45"
 wit-bindgen = "0.60"

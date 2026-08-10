@@ -7,6 +7,6 @@ edition = "2024"
 anyhow = { workspace = true }
 fslock = "0.2"
 temp-dir = "0.2"
-regex = "1.10"
-reqwest = "0.12"
+regex = { workspace = true }
+reqwest = { workspace = true }
 tokio = { version = "1", features = ["rt"] }

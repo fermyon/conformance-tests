@@ -1,5 +1,5 @@
 use helper::bindings::{
-    fermyon::spin2_0_0::variables::{get, Error},
+    fermyon::spin2_0_0::variables::{Error, get},
     wasi::http0_2_0::types::{IncomingRequest, OutgoingResponse, ResponseOutparam},
 };
 

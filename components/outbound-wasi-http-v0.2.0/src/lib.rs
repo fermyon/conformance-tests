@@ -25,9 +25,7 @@ impl bindings::Guest for Component {
         };
 
         let headers = Headers::new();
-        headers
-            .append(&"Content-Length".into(), &"13".into())
-            .unwrap();
+        headers.append("Content-Length", b"13").unwrap();
         let outgoing_request = OutgoingRequest::new(headers);
         outgoing_request.set_method(&Method::Post).unwrap();
         outgoing_request

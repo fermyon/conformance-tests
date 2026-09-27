@@ -9,7 +9,7 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
-    RUST_VERSION: "1.80"
+    RUST_VERSION: "1.96"
 
 jobs:
   build:
@@ -17,18 +17,18 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Install Rust toolchain
       shell: bash
       run: |
         rustup toolchain install ${{ env.RUST_VERSION }} --component rustfmt
         rustup default ${{ env.RUST_VERSION }}
     - name: Install Wasm Rust target
-      run: rustup target add wasm32-wasi && rustup target add wasm32-unknown-unknown
+      run: rustup target add wasm32-unknown-unknown
     - name: Create archive
       run: cargo run -- archive
     - name: Upload release artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: tests
         path: tests.tar.gz

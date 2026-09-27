@@ -18,17 +18,17 @@ const MQTT_USERNAME: &str = "MQTT_USERNAME";
 const MQTT_PASSWORD: &str = "MQTT_PASSWORD";
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    let address = get_header(&request, &MQTT_ADDRESS.to_owned())?;
-    let username = get_header(&request, &MQTT_USERNAME.to_owned())?;
-    let password = get_header(&request, &MQTT_PASSWORD.to_owned())?;
+    let address = get_header(&request, MQTT_ADDRESS)?;
+    let username = get_header(&request, MQTT_USERNAME)?;
+    let password = get_header(&request, MQTT_PASSWORD)?;
 
     let connection = mqtt::Connection::open(&address, &username, &password, 30)?;
 
-    connection.publish("telemetry-topic", &b"Eureka!".to_vec(), Qos::AtLeastOnce)?;
+    connection.publish("telemetry-topic", b"Eureka!".as_ref(), Qos::AtLeastOnce)?;
 
     Ok(helper::ok_response())
 }
 
-fn get_header(request: &IncomingRequest, header_key: &String) -> anyhow::Result<String> {
-    helper::get_header(request, header_key).with_context(|| format!("no {} header", header_key))
+fn get_header(request: &IncomingRequest, header_key: &str) -> anyhow::Result<String> {
+    helper::get_header(request, header_key).with_context(|| format!("no {header_key} header"))
 }

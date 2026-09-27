@@ -13,7 +13,7 @@ pub struct Request<'a, B> {
     pub body: Option<B>,
 }
 
-impl<'a, 'b> Request<'a, &'b [u8]> {
+impl<'a> Request<'a, &[u8]> {
     /// Create a new request with no headers or body
     pub fn new(method: Method, uri: &'a str) -> Self {
         Self {

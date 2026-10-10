@@ -9,4 +9,4 @@ fslock = "0.2"
 temp-dir = "0.2"
 regex = { workspace = true }
 reqwest = { workspace = true }
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt", "time"] }

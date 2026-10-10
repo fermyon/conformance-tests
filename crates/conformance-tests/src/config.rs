@@ -38,7 +38,7 @@ impl HttpInvocation {
     /// Run the invocation by sending the request and asserting the response
     pub fn run<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where
-        F: for<'a, 'b> FnOnce(
+        F: for<'a> FnOnce(
             test_environment::http::Request<'a, String>,
         ) -> anyhow::Result<test_environment::http::Response>,
     {
@@ -99,7 +99,7 @@ impl Request {
     /// Send the request
     pub fn send<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where
-        F: for<'a, 'b> FnOnce(
+        F: for<'a> FnOnce(
             test_environment::http::Request<'a, String>,
         ) -> anyhow::Result<test_environment::http::Response>,
     {

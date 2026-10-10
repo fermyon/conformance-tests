@@ -52,14 +52,14 @@ impl<'a, B: Into<reqwest::Body>> Request<'a, B> {
                 .join(self.path)
                 .context("could not construct url for request against Spin")?,
         );
-        outgoing
-            .headers_mut()
-            .extend(self.headers.iter().map(|(k, v)| {
-                (
-                    reqwest::header::HeaderName::from_bytes(k.as_bytes()).unwrap(),
-                    reqwest::header::HeaderValue::from_str(v).unwrap(),
-                )
-            }));
+        for &(name, value) in self.headers {
+            outgoing.headers_mut().append(
+                reqwest::header::HeaderName::from_bytes(name.as_bytes())
+                    .with_context(|| format!("invalid header name '{name}'"))?,
+                reqwest::header::HeaderValue::from_str(value)
+                    .with_context(|| format!("invalid value for header '{name}'"))?,
+            );
+        }
         *outgoing.body_mut() = self.body.map(Into::into);
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()

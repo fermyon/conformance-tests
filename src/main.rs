@@ -1,6 +1,6 @@
 fn main() {
     let Some(command) = std::env::args().nth(1) else {
-        eprintln!("Usage: test-runner <command>");
+        eprintln!("Usage: {} <archive|package [DIR]>", env!("CARGO_BIN_NAME"));
         std::process::exit(1);
     };
     let result = match command.as_str() {
@@ -123,7 +123,7 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
             .context("could not determine test name")?;
 
         let test_archive = dir_path.as_ref().join(test_name);
-        std::fs::create_dir_all(&test_archive).context("failed to create component directory")?;
+        std::fs::create_dir_all(&test_archive).context("failed to create test directory")?;
 
         // Check that the configuration file can be parsed:
         let config_file_path = test_path.join("test.json5");

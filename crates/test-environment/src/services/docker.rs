@@ -120,7 +120,7 @@ impl Drop for Container {
 
 impl Service for DockerService {
     fn name(&self) -> &str {
-        "docker"
+        &self.name
     }
 
     fn ready(&mut self) -> anyhow::Result<()> {

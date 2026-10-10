@@ -68,6 +68,10 @@ fn archive() -> anyhow::Result<()> {
     let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
     let mut tar = Builder::new(enc);
     tar.append_dir_all(".", temp_dir_path)?;
+    tar.into_inner()
+        .context("failed to finish tar archive")?
+        .finish()
+        .context("failed to finish gzip stream")?;
 
     println!("Tarball created: {}", output_tar);
     Ok(())

@@ -66,6 +66,10 @@ impl Service for PythonService {
                 .context("stdout is not valid utf8")?;
             if stdout.contains("READY") {
                 self.ready = true;
+            } else if self.child.try_wait()?.is_some() {
+                break;
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
         let exit = self.child.try_wait()?;

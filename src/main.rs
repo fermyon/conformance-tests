@@ -110,8 +110,8 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
 
         components.insert(component_name.to_owned(), wasm_artifact);
     }
-    for entry in std::fs::read_dir("tests").unwrap() {
-        let test = entry.unwrap();
+    for entry in std::fs::read_dir("tests").context("failed to read 'tests' directory")? {
+        let test = entry.context("failed to read a test directory")?;
         if !test.path().is_dir() {
             continue;
         }

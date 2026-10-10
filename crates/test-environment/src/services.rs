@@ -58,7 +58,7 @@ impl Services {
     pub fn get_port(&mut self, guest_port: u16) -> anyhow::Result<Option<u16>> {
         let mut previous_result = None;
         for service in &mut self.services {
-            let next_result = service.ports().unwrap().get(&guest_port);
+            let next_result = service.ports()?.get(&guest_port);
             match (previous_result, next_result) {
                 // If we haven't yet found a port, store the lookup in `result`.
                 (None, next_result) => {

@@ -23,7 +23,7 @@ impl bindings::Guest for Component {
 }
 
 fn handle(request: IncomingRequest) -> anyhow::Result<OutgoingResponse> {
-    // The request must have a "url" header.
+    // The request must have an "address" header.
     let Some(address) = request.headers().entries().iter().find_map(|(k, v)| {
         (k == "address")
             .then_some(v)

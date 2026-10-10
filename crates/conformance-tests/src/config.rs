@@ -169,7 +169,7 @@ pub enum Precondition {
     /// The test expects outgoing TCP requests to be echoed back
     ///
     /// The test runner should start a TCP server that echoes back the request
-    /// and it should update any references that test assets make to port 5000 to
+    /// and it should update any references that test assets make to port 7 to
     /// the port of the echo server.
     TcpEcho,
     /// The test expects a sqlite service to be available.

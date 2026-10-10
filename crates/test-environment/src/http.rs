@@ -138,7 +138,7 @@ impl Response {
         }
     }
 
-    /// A response with headers and a body
+    /// A response with a body and no headers
     pub fn new_with_body(status: u16, chunks: impl IntoChunks) -> Self {
         Self {
             status,

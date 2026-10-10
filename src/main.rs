@@ -52,7 +52,6 @@ use tar::Builder;
 use tempfile::tempdir;
 
 fn archive() -> anyhow::Result<()> {
-    // Ensure the program exits if any command fails
     let output_tar = "tests.tar.gz";
 
     // Create a temporary directory to store the files to be archived

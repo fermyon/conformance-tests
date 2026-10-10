@@ -117,7 +117,7 @@ impl ServicesConfig {
     }
 }
 
-/// Get all of the service definitions returning a HashMap of the service name to the service definition file extension.
+/// Resolve the requested built-in service names to definitions found in the given directory.
 fn get_builtin_service_definitions(
     mut builtins: HashSet<&str>,
     service_definitions_path: &Path,

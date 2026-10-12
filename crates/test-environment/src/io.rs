@@ -12,11 +12,20 @@ impl OutputStream {
         std::thread::spawn(move || {
             let mut buffer = vec![0; 1024];
             loop {
-                let msg = stream.read(&mut buffer).map(|n| buffer[..n].to_vec());
+                let msg = match stream.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(n) => Ok(buffer[..n].to_vec()),
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(e) => Err(e),
+                };
+                let failed = msg.is_err();
                 if let Err(e) = tx.send(msg) {
                     if let Err(e) = e.0 {
                         eprintln!("Error reading from stream: {e}");
                     }
+                    break;
+                }
+                if failed {
                     break;
                 }
             }

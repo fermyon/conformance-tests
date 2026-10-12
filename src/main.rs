@@ -1,6 +1,6 @@
 fn main() {
     let Some(command) = std::env::args().nth(1) else {
-        eprintln!("Usage: test-runner <command>");
+        eprintln!("Usage: {} <archive|package [DIR]>", env!("CARGO_BIN_NAME"));
         std::process::exit(1);
     };
     let result = match command.as_str() {
@@ -52,7 +52,6 @@ use tar::Builder;
 use tempfile::tempdir;
 
 fn archive() -> anyhow::Result<()> {
-    // Ensure the program exits if any command fails
     let output_tar = "tests.tar.gz";
 
     // Create a temporary directory to store the files to be archived
@@ -68,6 +67,10 @@ fn archive() -> anyhow::Result<()> {
     let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
     let mut tar = Builder::new(enc);
     tar.append_dir_all(".", temp_dir_path)?;
+    tar.into_inner()
+        .context("failed to finish tar archive")?
+        .finish()
+        .context("failed to finish gzip stream")?;
 
     println!("Tarball created: {}", output_tar);
     Ok(())
@@ -107,8 +110,8 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
 
         components.insert(component_name.to_owned(), wasm_artifact);
     }
-    for entry in std::fs::read_dir("tests").unwrap() {
-        let test = entry.unwrap();
+    for entry in std::fs::read_dir("tests").context("failed to read 'tests' directory")? {
+        let test = entry.context("failed to read a test directory")?;
         if !test.path().is_dir() {
             continue;
         }
@@ -120,7 +123,7 @@ fn package_into(dir_path: impl AsRef<Path>) -> anyhow::Result<()> {
             .context("could not determine test name")?;
 
         let test_archive = dir_path.as_ref().join(test_name);
-        std::fs::create_dir_all(&test_archive).context("failed to create component directory")?;
+        std::fs::create_dir_all(&test_archive).context("failed to create test directory")?;
 
         // Check that the configuration file can be parsed:
         let config_file_path = test_path.join("test.json5");

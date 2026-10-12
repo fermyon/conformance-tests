@@ -38,7 +38,7 @@ impl HttpInvocation {
     /// Run the invocation by sending the request and asserting the response
     pub fn run<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where
-        F: for<'a, 'b> FnOnce(
+        F: for<'a> FnOnce(
             test_environment::http::Request<'a, String>,
         ) -> anyhow::Result<test_environment::http::Response>,
     {
@@ -99,7 +99,7 @@ impl Request {
     /// Send the request
     pub fn send<F>(self, send: F) -> anyhow::Result<test_environment::http::Response>
     where
-        F: for<'a, 'b> FnOnce(
+        F: for<'a> FnOnce(
             test_environment::http::Request<'a, String>,
         ) -> anyhow::Result<test_environment::http::Response>,
     {
@@ -169,7 +169,7 @@ pub enum Precondition {
     /// The test expects outgoing TCP requests to be echoed back
     ///
     /// The test runner should start a TCP server that echoes back the request
-    /// and it should update any references that test assets make to port 5000 to
+    /// and it should update any references that test assets make to port 7 to
     /// the port of the echo server.
     TcpEcho,
     /// The test expects a sqlite service to be available.

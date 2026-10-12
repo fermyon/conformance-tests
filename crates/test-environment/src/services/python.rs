@@ -11,6 +11,7 @@ use std::{
 
 /// A python script as a service
 pub struct PythonService {
+    name: String,
     child: std::process::Child,
     stdout: OutputStream,
     ports: OnceCell<HashMap<u16, u16>>,
@@ -37,6 +38,7 @@ impl PythonService {
             .with_context(|| format!("python failed to spawn for '{}'", script_path.display()))?;
         std::thread::sleep(std::time::Duration::from_millis(1000));
         Ok(Self {
+            name: name.to_owned(),
             stdout: OutputStream::new(
                 child
                     .stdout
@@ -53,7 +55,7 @@ impl PythonService {
 
 impl Service for PythonService {
     fn name(&self) -> &str {
-        "python"
+        &self.name
     }
 
     fn ready(&mut self) -> anyhow::Result<()> {
@@ -64,6 +66,10 @@ impl Service for PythonService {
                 .context("stdout is not valid utf8")?;
             if stdout.contains("READY") {
                 self.ready = true;
+            } else if self.child.try_wait()?.is_some() {
+                break;
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
         let exit = self.child.try_wait()?;
@@ -113,6 +119,7 @@ impl Service for PythonService {
 impl Drop for PythonService {
     fn drop(&mut self) {
         let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
